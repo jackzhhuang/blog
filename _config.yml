@@ -4,9 +4,9 @@
 
 # Site
 title: Jack Huang的技术思绪
-subtitle: ''
+subtitle: '一些关于技术的思考，想法和积累'
 description: ''
-keywords:
+keywords: C/C++,RUST,Python,nodejs,Java,Mysql
 author: Jack Huang
 language: zh-CN
 timezone: 'Asia/Shanghai'
