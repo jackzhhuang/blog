@@ -105,4 +105,3 @@ deploy:
   type: git
   repo: git@github.com:jackzhhuang/jackzhhuang.github.io.git
   branch: main
-  token: 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
