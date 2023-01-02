@@ -27,7 +27,7 @@ fn main() {
 
 上面的代码相当于这样：
 
-![http-bw](https://www.jackhuang.cc/svg/rust_所有权.svg)
+![绑定关系](https://www.jackhuang.cc/svg/rust_所有权.svg)
 
 ## 从最简单的所有权关系说起
 
