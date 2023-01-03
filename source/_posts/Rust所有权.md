@@ -42,21 +42,77 @@ fn main() {
     println!("s = {}", s);
 ```
 
-以上代码是不能通过编译的，因为s赋值给t后，s将会变成invalid，也就是悬空指针，这个时候不能对s进行任何访问操作，其对象关系图如下：
+以上代码是不能通过编译的，报错如下：
+
+```rust
+  --> src/main.rs:17:24
+   |
+14 |     let s = String::from("hello rust!");
+   |         - move occurs because `s` has type `String`, which does not implement the `Copy` trait
+15 |     let t = s;
+   |             - value moved here
+16 |     println!("t = {}", t);
+17 |     println!("s = {}", s);
+   |                        ^ value borrowed here after move
+```
+
+因为s赋值给t后，s将会变成invalid，也就是悬空指针，这个时候不能对s进行任何访问操作，其对象关系图如下：
 
 ![赋值](https://www.jackhuang.cc/svg/rust赋值.svg)
 
 也即，s将失去String对象，t取而代之，只有去掉对s的访问才可以通过编译，Rust不允许访问没有资源的指针。
 
-### 返回值
+
+
+### 参数传递
+
+同理，返回值也一样，比如我们有一个函数，返回一个String对象：
+
+```rust
+fn print_upper_string (t: String) {
+    println!("{}", t.to_uppercase());
+}
+
+
+fn main() {
+    let s = String::from("hello rust!");
+    print_upper_string(s);
+    println!("s = {}", s);
+}
+```
+
+和之前一样，上面的代码第10行诗没有办法通过编译的，会提示：
+
+```rust
+error[E0382]: borrow of moved value: `s`
+  --> src/main.rs:16:24
+   |
+14 |     let s = String::from("hello rust!");
+   |         - move occurs because `s` has type `String`, which does not implement the `Copy` trait
+15 |     print_upper_string(s);
+   |                        - value moved here
+16 |     println!("s = {}", s);
+   |                        ^ value borrowed here after move
+```
 
 
 
 ## 使用借用
 
+解决以上的问题有三个办法，一个是借用，一个是clone，还有一个是使用引用计数。这里先讲借用。
 
+所谓借用，其实就是C++的引用，也就是被赋值的指针是引用，而不是拥有资源，此时不发生资源转移：
 
-## 借用的限制
+```rust
+    let s = String::from("hello rust!");
+    let t = &s;
+    println!("t = {}", t);
+    println!("s = {}", s);
+```
+
+例如上面的代码，t是获得&s，即t只是借用s资源，并不拥有它，因此可以通过编译，运行良好。
+
+借用
 
 
 
