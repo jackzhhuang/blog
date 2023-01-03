@@ -159,7 +159,7 @@ s = 0x7ffeefbff2f8
 
 这时，s和t就是两个完全不同的指针了，它们只是值相同而已：
 
-
+![克隆](https://www.jackhuang.cc/svg/rust_clone.svg)
 
 
 
