@@ -81,7 +81,7 @@ fn main() {
 }
 ```
 
-和之前一样，上面的代码第10行诗没有办法通过编译的，会提示：
+和之前一样，上面的代码第10行诗没有办法通过编译的，因为print_upper_string函数的参数t已经获得了s的String对象资源，s变成了悬空指针，cargo build会提示：
 
 ```rust
 error[E0382]: borrow of moved value: `s`
@@ -110,11 +110,30 @@ error[E0382]: borrow of moved value: `s`
     println!("s = {}", s);
 ```
 
-例如上面的代码，t是获得&s，即t只是借用s资源，并不拥有它，因此可以通过编译，运行良好。
+例如上面的代码，t是获得&s，即t只是借用s资源，并不拥有它，因此可以通过编译，运行良好。都会打印hello rust!：
 
-借用
+```rust
+t = hello rust! 
+s = hello rust! 
+```
 
+如果去打印t的值和s的地址，会发现它们是相等的：
 
+```rust
+    println!("t = {:p}", t);
+    println!("s = {:p}", &s);
+```
+
+此时会输出：
+
+```rust
+t = 0x7ffeefbff2f8
+s = 0x7ffeefbff2f8
+```
+
+所以t其实对s的一个引用：
+
+ 
 
 ## 使用拷贝
 
