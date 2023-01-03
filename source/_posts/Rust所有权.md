@@ -29,6 +29,8 @@ fn main() {
 
 ![绑定关系](https://www.jackhuang.cc/svg/rust_所有权.svg)
 
+这里简单说一下，s可以理解为一个指针，String即为对象，其成员p指向真正的字符串类型，后面的10位字符串的长度，16为String对象的容量（capacity） 。
+
 ## 从最简单的所有权关系说起
 
 ### 赋值
@@ -110,7 +112,7 @@ error[E0382]: borrow of moved value: `s`
     println!("s = {}", s);
 ```
 
-例如上面的代码，t是获得&s，即t只是借用s资源，并不拥有它，因此可以通过编译，运行良好。都会打印hello rust!：
+例如上面的代码，t获得&s，即t只是借用s资源，并不拥有它，因此可以通过编译，运行良好。都会打印hello rust!：
 
 ```rust
 t = hello rust! 
@@ -133,9 +135,31 @@ s = 0x7ffeefbff2f8
 
 所以t其实对s的一个引用：
 
- 
+![引用](https://www.jackhuang.cc/svg/rust引用.svg)
 
-## 使用拷贝
+因此，打印t和s所指向的字符串内容时，访问t也可以用解引用来访问：
+
+```rust
+    println!("t = {}", *t);
+    println!("s = {}", s);
+```
+
+以上两句代码同样也是打印hello rust!。而且，你会发现*t的地址正是s的地址。
+
+## 使用克隆
+
+另一个可以用于赋值的方法，就是克隆函数clone：
+
+```rust
+    let s = String::from("hello rust! ");
+    let t = s.clone();
+    println!("t = {}, t = {:p}", t, &t);
+    println!("s = {}, s = {:p}", s, &s);
+```
+
+这时，s和t就是两个完全不同的指针了，它们只是值相同而已：
+
+
 
 
 
