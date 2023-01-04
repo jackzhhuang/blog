@@ -1,7 +1,6 @@
 ---
 title: Rust所有权
 date: 2023-01-02 16:17:40
-published: false
 tags:
 categories:
 - Rust
@@ -13,7 +12,7 @@ Rust的所有权应该是Rust语言最难理解的一个，是初学者学习Rus
 
 
 
-## 简单的生命周期
+## 1. 简单的生命周期
 
 从最简单的说起，let表示绑定某个指针到某个对象上，当离开作用域时，对象被销毁，指针进而变为invalid：
 
@@ -31,9 +30,11 @@ fn main() {
 
 这里简单说一下，s可以理解为一个指针，String即为对象，其成员p指向真正的字符串类型，后面的10位字符串的长度，16为String对象的容量（capacity） 。
 
-## 从最简单的所有权关系说起
 
-### 赋值
+
+## 2. 从最简单的所有权关系说起
+
+### 2.1 赋值
 
 其实Rust难，就难在下面这个简单代码里面，很多人是无法接受Rust这种规定，但其实Rust这么干也是用心良苦。
 
@@ -66,7 +67,7 @@ fn main() {
 
 
 
-### 参数传递
+### 2.2 参数传递
 
 同理，返回值也一样，比如我们有一个函数，返回一个String对象：
 
@@ -99,7 +100,7 @@ error[E0382]: borrow of moved value: `s`
 
 
 
-## 使用借用
+## 3. 使用借用
 
 解决以上的问题有三个办法，一个是借用，一个是clone，还有一个是使用引用计数。这里先讲借用。
 
@@ -146,7 +147,9 @@ s = 0x7ffeefbff2f8
 
 以上两句代码同样也是打印hello rust!。而且，你会发现*t的地址正是s的地址。
 
-## 使用克隆
+
+
+## 4. 使用克隆
 
 另一个可以用于赋值的方法，就是克隆函数clone：
 
@@ -163,11 +166,141 @@ s = 0x7ffeefbff2f8
 
 
 
-## 数组的特殊情况
+## 5. 数组的特殊情况
+
+以上说的是非数组情况，到了数组，稍微有点不一样了，因为数组是维护了一组指针，如果随便允许把其中某个或者某些指针置为悬空指针，那么数组就需要维护哪个指针是悬空的，哪个指针是有效的。Rust拒绝这么干，所以，数组中的指针不允许直接变成悬空指针：
+
+```rust
+    let array: [String; 5] = [String::from("hello"), 
+                              String::from("rust"), 
+                              String::from("!"), 
+                              String::from("jack"), 
+                              String::from("huang"),];
+    let t = array[2];
+    let s = array[3];
+
+    println!("t = {}", t);
+    println!("s = {}", s);
+
+```
+
+按前面所说，以上代码中，t和s会获得array数组中第三、第四个资源所有权，但实际Rust拒绝这么干，此时编译错误：
+
+```rust
+error[E0508]: cannot move out of type `[String; 5]`, a non-copy array
+  --> src/main.rs:21:13
+   |
+21 |     let t = array[2];
+   |             ^^^^^^^^
+   |             |
+   |             cannot move out of here
+   |             move occurs because `array[_]` has type `String`, which does not implement the `Copy` trait
+   |             help: consider borrowing here: `&array[2]`
+
+error[E0508]: cannot move out of type `[String; 5]`, a non-copy array
+  --> src/main.rs:22:13
+   |
+22 |     let s = array[3];
+   |             ^^^^^^^^
+   |             |
+   |             cannot move out of here
+   |             move occurs because `array[_]` has type `String`, which does not implement the `Copy` trait
+   |             help: consider borrowing here: `&array[3]`
+```
+
+也即，对于数组中的资源，我们只能用引用访问，以下可以正常编译通过且打印如预期：
+
+```rust
+    let array: [String; 5] = [String::from("hello"), 
+                              String::from("rust"), 
+                              String::from("!"), 
+                              String::from("jack"), 
+                              String::from("huang"),];
+    let t = &array[2];
+    let s = &array[3];
+
+    println!("t = {}", *t);
+    println!("s = {}", *s);
+```
+
+相比之前的代码，t和s都变成了引用，由于是引用，并不会转移所有权，因此array的资源都在。
+
+如果是多个引用，则直接使用引用数组即可，例如连续引用数组的第三和第四个资源：
+
+```rust
+    let array  = vec![String::from("hello"), 
+                              String::from("rust"), 
+                              String::from("!"), 
+                              String::from("jack"), 
+                              String::from("huang"),];
+    let t: &[String] = &array[2..=3];
+
+    println!("{:?} ", t);
+```
+
+此时打印：
+
+```rust
+["!", "jack"] 
+```
+
+这里，数组被我改成了Vec对象，其实只要是连续的对象，比如数组（即[]），Vec，String都可以用引用数组来引用，String的引用有点特殊：
+
+```rust
+    let s = String::from("hello rust!");
+    let t: &str = &s[2..=6];
+
+    println!("{:?} ", t);
+```
+
+这里看到，使用的是&str而不是&[T]，这是Rust的两类数组，&[T]是普通数组引用，&str相当于对字符类型的特殊数组引用，即char串引用。作为特殊的引用，Rust还给它们（&[T]和&str）起了个名字叫切片，即slice。关于引用后面还要专门拿出来讲，这里关注所有权这个话题就好了。
+
+尽管数组不允许别人把它的资源拿走，只能用引用，但如果用迭代器去访问，资源的所有权还是会被拿走的：
+
+```rust
+    let v = vec![String::from("hello"), 
+                              String::from("rust"), 
+                              String::from("!"), ];
+    for t in v {
+        print!("t = {}", t)
+    }                              
+
+    println!("v = {:?}", v);
+```
+
+上面的代码会报错，因为v的资源的所有权都被t拿走了，v已经是一个悬空指针：
+
+```rust
+  --> src/main.rs:32:26
+   |
+25 |     let v = vec![String::from("hello"), 
+   |         - move occurs because `v` has type `Vec<String>`, which does not implement the `Copy` trait
+...
+28 |     for t in v {
+   |              - `v` moved due to this implicit call to `.into_iter()`
+...
+32 |     println!("v = {:?}", v);
+   |                          ^ value borrowed here after move
+```
 
 
 
-## 使用RC计数器
+## 6. primitive类型不会有所有权转移
+
+尽管前面讲了很多所有权转移的例子，但对于原始类型（比如整型，bool，char）并不会有所有权转移的问题，它们永远都是copy：
+
+```rust
+    let a = 3;
+    let b = a; // 不会发生所有权转移，a和b都有自己的值3
+    println!("a = {}, b = {}", a, b);
+```
+
+上面的代码正常编译和运行：
+
+```rust
+a = 3, b = 3
+```
 
 
 
+所有权和引用后面还会专门讲很多，这次算是先来个前奏。慢慢积累吧。
