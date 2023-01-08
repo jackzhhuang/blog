@@ -4,11 +4,15 @@ date: 2023-01-07 17:19:26
 toc: true
 tags:
 - Rust
+categories:
+- Rust
 ---
 
 Rust的struct定义和C++的类似，甚至提供了简化初始化的方法，定义成员方法也更灵活，刚刚登上第一个陡坡（所有权），这一节缓缓，因为struct算是Rust中难度	不高的内容。
 
 <!--more-->
+
+<!-- toc -->
 
 ## struct的定义
 
