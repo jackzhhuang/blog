@@ -264,7 +264,7 @@ note: this function takes ownership of the receiver `self`, which moves `r`
    = note: this error originates in the macro `$crate::format_args_nl` (in Nightly builds, run with -Z macro-backtrace for more info)
 ```
 
-根据提示可以知道，因为self不是引用，所以对象资源被转移走了，r就丢了对象，导致悬空指针。
+根据提示可以知道，因为self不是引用，所以对象资源被转移走了，r就丢了对象，导致悬空指针。这种把self定义为非引用的用法在Option\<T\>中比较常用，下一节会讲到。
 
 
 
