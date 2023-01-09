@@ -77,7 +77,7 @@ struct Person {
 }
 ```
 
-Rust提供了很多trait，struct结构derive了某个trait就有了某个特性，比如这里derive了Debug trait，就可以让rust知道怎么格式化输出这个结构体，更多trait后面会讲到，官方教学文档也给所有的trait介绍，详见：https://doc.rust-lang.org/book/appendix-03-derivable-traits.html，这里不展开说。
+Rust提供了很多trait，struct结构derive了某个trait就有了某个特性，比如这里derive了Debug trait，就可以让rust知道怎么格式化输出这个结构体，更多trait后面会讲到，官方教学文档也给所有的trait介绍，详见：https://doc.rust-lang.org/book/appendix-03-derivable-traits.html  ，这里不展开说。
 
 另外，由于是自定义的类型，需要在格式化的时候告诉Rust，因此print宏中，{}需要修改为{:?}（简洁打印，所有字段都在一行打印出来）或者{:#?}（美观打印，会换行且对齐）。
 
