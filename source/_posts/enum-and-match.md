@@ -1,7 +1,6 @@
 ---
 title: enum和match
 date: 2023-01-08 19:25:24
-published: false
 tags:
 categories:
 - Rust
@@ -11,9 +10,11 @@ categories:
 
 <!--more-->
 
+<!-- toc -->
 
 
-## 定义一个enum
+
+## 1. 定义一个enum
 
 枚举类型从来不缺席任何一个稍微高级的语言。Rust也不例外，定义一个枚举只需要enum关键字即可，比如我们定义IP地址类型，其有两种格式，V4和V6版本：
 
@@ -55,7 +56,7 @@ fn main() {
 
 
 
-### 给enum绑定值
+### 1.1 给enum绑定值
 
 上面的例子，IpAddressType定义了V4和V6两个类型，要使用它们去标识一个IP需要和String类型一起使用，即IpAddressType标识String的内容是V4还是V6，enum实际上还可以和一个类型绑定，使得其不但有类型属性，还有值属性，比如上面的例子，可以简化为这样：
 
@@ -124,7 +125,7 @@ point = Point { x: 100, y: 120 }
 
 
 
-### 给enum加上成员方法
+### 1.2 给enum加上成员方法
 
 enum甚至可以加上成员方法，比如我们给IpAddress添加一个方法：
 
@@ -151,7 +152,7 @@ this is an enum!
 
 
 
-### enum和struct的区别
+### 1.3 enum和struct的区别
 
 看上去enum和struct大部分是一样的，它们可以定义字段，定义方法，但也有细微的不同，首先当然是一个是用struct关键字定义，一个是用enum定义。
 
@@ -210,7 +211,7 @@ it is v6
 
 
 
-## match控制流
+## 1.4 match控制流
 
 上面的代码用到了match语法，match其实就是C++中的switch，关键是：match强制检查所有enum类型，否则报错，也就是必须要么枚举所有的类型，或者使用下划线 _  来指定匹配之前的类型都失败则执行默认行为。比如之前的match判断就枚举了V4和V6的所有枚举，但如果遇到整型，由于不可能枚举所有整形，就需要默认分支，也即下划线来保证所有的分支都有考虑到：
 
@@ -245,7 +246,7 @@ fn is_24_or_30(i: i32) {
 
 
 
-## 一个常用的enum：Optional\<T\>
+## 1.5 一个常用的enum：Optional\<T\>
 
 可以讲讲Optional\<T\>了。它实际上是一个enum，其源代码如下：
 
@@ -294,16 +295,126 @@ pub enum Option<T> {
  }
  ```
 
+以上代码可以看出，遇到Optional\<T\>枚举时，必须考虑None和Some两种情况（不然编译报错，虽然可以用下划线来表示默认行为），而要想拿到和Some绑定的T，则必须用match（或者if let，下面会讲），简单总结来说，Optional\<T\>分为两层处理：
+
+1、处理None和Some；
+
+2、若不为None处理Some取出T。
+
+那么，有人会问，为什么要有Optional\<T\>这个东西呢？因为Rust所有实体都不能为invalid状态，因此不存在“空”这样的概念，要么有值，要么不能访问，产生编译错误，但现实是有这个概念的，很多语言也有这个概念，Rust在语言机制层面禁止了这个状态的存在，可为了和现实或者和其它语言相对应表达意思的话怎么办呢？于是就需要Optional\<T\>来做这个工作。
+
+最后要提一下的是，如果match某个枚举类型啥也不想干，怎么表达呢？因为match必须强制对所有的枚举类型都考虑一遍，所以，遇到啥也不想干的分支，需要一个特殊的写法：
+
+```rust
+    match ip1 {
+        Some(x) => {
+            match x {
+                IpAddress::V4(a, b, c, d) => println!("here"),
+                _ => (),
+            }
+            // println!("x = {:?}", x);
+        }
+        _ => (),
+    }
+```
+
+上面代码第9行，=> ()就是表示，这个分支啥也不干。
 
 
 
+## 1.6 if let用法
 
-## if let用法
+上面讲了match处理Optional\<T\>的方法，如果你只是对某个枚举类型感兴趣但其它都做默认处理的话，就可以使用if let用法。这样可以比较自然的写出对枚举类型的处理，其实也可以少打一些代码。
 
-if let实际上
+if let其实就是match的特殊版本，即只处理某一个枚举，其它要么忽视，要么else去做默认处理，例如上面的例子可以改写成这样：
+
+```rust
+fn what_kind(k: &Option<IpAddress>) {
+    if let Some(x) = k {
+        if let IpAddress::V4(a, b, c, d) = x {
+            println!("the v4 ip is {}:{}:{}:{}", a, b, c, d);
+        }
+        if let IpAddress::V6(a) = x {
+            println!("the v6 ip is {:?}", a);
+        }
+    } else {
+        println!("None");
+    }
+}
+```
 
 
 
+## 1.7 使用match和if let的注意事项
 
+match和if let的使用算是讲完了，但有一个不起眼的事情需要提一下，就是match和if let是会发生资源转移的，例如：
 
-## 
+```rust
+    if let Some(x) = ip1 {
+        if let IpAddress::V4(a, b, c, d) = x {
+            println!("here");
+        }
+        println!("x = {:?}", x);
+    }
+    println!("ip1 = {:?}", ip1);
+```
+
+上面第一行代码if let Some(x) = ip1，会发生资源转移，即ip1的字段会转移到x上，也即partial moves（详见：https://doc.rust-lang.org/rust-by-example/scope/move/partial_move.html ）因此，第7行的println!会访问一个已经包含悬空指针的ip1，这不合法，编译器拒绝编译：
+
+```rust
+error[E0382]: borrow of partially moved value: `ip1`
+  --> src/main.rs:71:28
+   |
+65 |     if let Some(x) = ip1 {
+   |                 - value partially moved here
+...
+71 |     println!("ip1 = {:?}", ip1);
+   |                            ^^^ value borrowed here after partial move
+   |
+   = note: partial move occurs because value has type `IpAddress`, which does not implement the `Copy` trait
+   = note: this error originates in the macro `$crate::format_args_nl` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: borrow this field in the pattern to avoid moving `ip1.0`
+   |
+65 |     if let Some(ref x) = ip1 {
+   |                 +++
+```
+
+编译起给出的建议是用引用ref x，当然，我觉得用&ip1也可以。
+
+还需要注意到一个点是，x并没有发生资源转移，因为x的资源都是u8，他们是primitive类型的，直接使用拷贝，这在前面讲过。
+
+换成match呢：
+
+```rust
+	 match ip1 {
+        Some(x) => {
+            if let IpAddress::V4(a, b, c, d) = x {
+                println!("here");
+            }
+            println!("x = {:?}", x);
+        },
+        _ => (),
+    }
+    println!("ip1 = {:?}", ip1);
+```
+
+依然编译不通过的，资源转移发生在上面的第2行：Some(x) =>，此时ip1资源转给了x，ip1又包含悬空指针了：
+
+```rust
+error[E0382]: borrow of partially moved value: `ip1`
+  --> src/main.rs:74:28
+   |
+66 |         Some(x) => {
+   |              - value partially moved here
+...
+74 |     println!("ip1 = {:?}", ip1);
+   |                            ^^^ value borrowed here after partial move
+   |
+   = note: partial move occurs because value has type `IpAddress`, which does not implement the `Copy` trait
+   = note: this error originates in the macro `$crate::format_args_nl` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: borrow this field in the pattern to avoid moving `ip1.0`
+   |
+66 |         Some(ref x) => {
+```
+
+ 总结来说，使用match或者if let一定要小心，如果不想发生资源转移，那么就用引用来代替，编译器给出了不错的建议。
