@@ -126,9 +126,30 @@ let take = array2[1];
 
 因为首先Rust不允许悬空指针的存在，其次如果Vec去维护中间哪一个元素处于悬空指针又实在不合常理，毕竟Vec就是Vec，即向量，向量不应该感知这些东西。因此如果有人打算通过索引访问去取走Vec的资源，那么就会被编译器报错。
 
+### 插入操作
+
+#### insert()方法
+
+相对于push操作，每一次的insert() 的操作就需要大量移动移动数据了，push只有超过capacity的时候才会产生数据转移，而insert每一次都要把需要插入的位置的后面元素往后挪动一个位置，空出来后给新元素放入：
+
+```rust
+    let mut array1 = vec![192, 31, 231, -12, 3];
+
+    println!("before insert, array1 = {:?}", array1);
+
+    array1.insert(1, 88);
+
+
+    println!("after insert, array1 = {:?}", array1);
+```
+
+如果插入操作真的需要很频繁，那么就应该用 LinkedList\<T\>。
+
 
 
 ### 删除操作
+
+#### pop()方法
 
 如果想删去Vec的元素，推荐用的是pop()方法，但注意pop() 方法只能从Vec的最后一个元素开始删除，毕竟前面也说了，试图从中间开始插入或删除一个Vec会引起数据移动操作，这是非常低效的。
 
@@ -152,8 +173,35 @@ assert_eq!(array2.len(), 2);
 
 以上代码编译不通过，因为第1行for in语句中，s会逐次获得array2的资源，第4行再去访问array2的资源会编译失败。
 
+#### swap_remove () 方法
+
+如果真的需要删掉其中某一个元素，那么可以使用swap_remove()。它的入参是一个index，即需要删掉的元素的索引。为了避免数据移动，Vec的删除策略是这样的：把最后一个元素的值和需要删掉的index交换，并把Vec的长度减1:
+
+```rust
+    let mut array1 = vec![192, 31, 231, -12, 3];
+
+    println!("before swap_remove, array1 = {:?}", array1);
+
+    array1.swap_remove(1);
+
+    println!("after swap_remove, array1 = {:?}", array1);
+```
+
+输出如下：
+
+```rust
+before swap_remove, array1 = [192, 31, 231, -12, 3]
+after swap_remove, array1 = [192, 3, 231, -12]
+```
+
+可以看到，我们打算删掉31，于是传入它的index=1，Vec把末尾的3交换到31上，然后长度减1。同时，swap_remove还会把31返回出来，这里程序没有提现。
+
 
 
 ### Vec内部结构探究
 
-Vec实际上内部是封装了一个tuple结构，tuple中第一个是指针，指向T资源，第二个是长度len，第三个是容量capacity。Vec保证当容量不足时就会自动懂扩容，因此自动扩容的出现点出现在所需内存大于capacity时。把上面的array2结构画出来，会是这样（String结构这里简化了，关于String结构后一节会讲，这里只关注Vec）：
+Vec实际上内部是封装了一个tuple结构，tuple中第一个是指针，指向T资源，第二个是长度len，第三个是容量capacity。Vec保证当容量不足时就会自动懂扩容，因此自动扩容的出现点出现在所需内存大于capacity时。把上面的array2结构画出来，会是这样：
+
+![Vec内部](https://www.jackhuang.cc/svg/Vec.svg)
+
+可以看到，上图蓝色的三个元素就是Vec内部主要封装的三个熟悉，用tuple表示为 (p, 3, 6) ，即p表示指向一组连续的内存，放String数组，3则是数组的元素个数，6则表示array2的容量，表示还可以再存放6 - 3 = 3个String对象，且保证在此之前不会触发数据移动操作。
