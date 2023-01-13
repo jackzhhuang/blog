@@ -128,9 +128,9 @@ let take = array2[1];
 
 
 
-### pop操作
+### 删除操作
 
-如果想删去Vec的元素，推荐用的是pop()方法，但注意pop() 方法只能从Vec的最后一个元素开始删除，毕竟前面也说了，试图从中间开始插入删除一个Vec会引起数据移动操作。这是非常低效的。
+如果想删去Vec的元素，推荐用的是pop()方法，但注意pop() 方法只能从Vec的最后一个元素开始删除，毕竟前面也说了，试图从中间开始插入或删除一个Vec会引起数据移动操作，这是非常低效的。
 
 例如我们pop出最后一个元素：
 
@@ -139,8 +139,21 @@ assert_eq!(array2.pop(), Some("hello jack".to_string()));
 assert_eq!(array2.len(), 2);
 ```
 
-可以看到，pop()参数返回的是一个Option\<T\>，也就是如果array2是空的，那么就会返回None。这里返回的是Some(String)类型。pop之后，array2就只有两个元素在里面了，
+可以看到，pop()参数返回的是一个Option\<T\>，也就是如果array2是空的，那么就会返回None。这里返回的是Some(String)类型。pop之后，array2就只有两个元素在里面了。
+
+但要注意，如果用for in的方式访问array2且没有使用引用的话，还是会把里面的资源转移走的：
+
+```rust
+    for s in array2 {
+        println!("{}", s);
+    }
+    assert_eq!(array2.pop(), Some("hello jack".to_string()));
+```
+
+以上代码编译不通过，因为第1行for in语句中，s会逐次获得array2的资源，第4行再去访问array2的资源会编译失败。
 
 
 
 ### Vec内部结构探究
+
+Vec实际上内部是封装了一个tuple结构，tuple中第一个是指针，指向T资源，第二个是长度len，第三个是容量capacity。Vec保证当容量不足时就会自动懂扩容，因此自动扩容的出现点出现在所需内存大于capacity时。把上面的array2结构画出来，会是这样（String结构这里简化了，关于String结构后一节会讲，这里只关注Vec）：
