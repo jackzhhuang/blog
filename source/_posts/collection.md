@@ -309,7 +309,34 @@ s = "你好，世界！"
 
 189其实是“你”这个字符的第二个字节数。
 
-### 2.3 Rust的String不简单
+
+
+### 2.3 比较两个String
+
+Rust在这方面要求就比较简单，只需要 == 去比较就好了：
+
+```rust
+    let s1 = String::from("你好世界!");
+    let s2 = "你好世界!";
+
+    if s1 == s2 {
+        println!("they are same!");
+    } else {
+        println!("they are different!");
+    }
+```
+
+输出为：
+
+```rust
+they are same!
+```
+
+虽然s1是String对象，s2是原生字符串，s1是对象的指针，s2是一个引用，但Rust还是会去判断这两个字符串是否内容相等。
+
+
+
+### 2.4 Rust的String不简单
 
 Rust的String并不简单，这里只是主要提了最重要的一点，即String需要我们时刻知道我们到底是造操作字符还是字节，未来遇到String的使用，还是需要多翻阅文档，这里就不去一句句翻译文档内容了。
 
