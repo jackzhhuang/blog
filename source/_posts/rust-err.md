@@ -22,7 +22,7 @@ Rust的错误处理主要有以下4点需要学习：
 
 <!-- toc -->
 
-## panic!宏
+## 1. panic!宏
 
 这个是最简单也是最暴力的错误解决处理方案，即直接中断程序运行，并且报告程序错误。如果程序无法继续往下执行，那么，尽早中断也是不错的选择，关键是，如果配合环境变量RUST_BACKTRACE=1的话，还可以打印从panic的地方开始的调用栈，方便快速定位问题：
 
@@ -65,7 +65,7 @@ note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose bac
 
 
 
-## 使用Result\<T, E\>
+## 2. 使用Result\<T, E\>
 
 大部分错误都是可以容忍的，或者说我们可以继续保持程序继续运行，同时给用户一个友好提示，所以给一个恰当的提示是大多数场景。这个时候我们一般使用Result\<T, E\>。这是一个很简单但非常有用且常用的枚举类型，其源代码为：
 
@@ -125,7 +125,29 @@ fn main() {
 
 
 
-## 用 ? 来简化返回的错误值处理
+## 3. 用expect代替panic!宏
+
+如果我们只是想遇到错误就直接panic，那么expect可以帮助我们少写一次 match 或则 if ：
+
+```rust
+    let mut file_handle = File::open("nofile.txt").expect("cannot open the file");
+    file_handle.write_all("hello world!".to_string().as_bytes());
+```
+
+ 输出为：
+
+```rust
+thread 'main' panicked at 'cannot open the file: Os { code: 2, kind: NotFound, message: "No such file or directory" }', src/main.rs:35:52
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
+
+可以看到，我们并不需要去判断open() 方法的返回值Result\<T, E\>，它的expect()  方法帮我们做了判断，如果是失败，那么就panic，如果是成功，则unwrap给我们句柄。
+
+如果文件存在，那么expect直接返回句柄，那么后面的写入内容就可以顺利执行。
+
+
+
+## 4. 用 ? 来简化返回的错误值处理
 
 Rust提供了了 ? 号来帮助我们简化这种常见的Result\<T, E\>判断。? 其实就是一段简单的逻辑，即，如果返回的是Err那么就直接返回，如果是Ok则继续往下执行：
 
@@ -158,7 +180,45 @@ fn main() {
 
 
 
-## 使用Optional\<T\>也是一种选择
+## 5. 返回其它类型的错误
+
+上面可以看到，我们返回的错误Err\<E\>中，类型都是一致的，也即std::io::Error ，但如果我们不想返回这个类型的错误的话呢？这个时候会发生错误：
+
+```rust
+fn open_check(file_name: &str) -> Result<(), std::io::Error> {
+    let file_hanle = File::open(file_name)?;
+    let content = String::new();
+    file_hanle.read_to_string(&mut content);
+    if content == "hello world!" {
+        Ok(())
+    } else {
+        Err("the content is not hello world!".to_string())
+    }
+}
+
+fn main() {
+    open_check("nofile.txt");
+}
+```
+
+编译错误如下：
+
+```rust
+error[E0308]: mismatched types
+  --> src/main.rs:18:13
+   |
+18 |         Err("the content is not hello world!".to_string())
+   |         --- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected struct `std::io::Error`, found struct `String`
+   |         |
+   |         arguments to this enum variant are incorrect
+   |
+```
+
+因为函数签名上期待的错误枚举，绑定的类型是std::io::Error，但这里返回了String。解决方法是后面学到的trait和面向对象设计。后面再提。
+
+
+
+## 6. 使用Optional\<T\>也是一种选择
 
 Optional\<T\>也可以像Result\<T, E\>那样用，如果是None那么就直接返回，否则就继续处理，比如前面的HashMap，我们get一个key，若存在，则乘以二返回，否则就返回None：
 
@@ -187,7 +247,7 @@ fn main() {
 
 
 
-## 什么时候panic什么时候返回错误码
+## 7. 什么时候panic什么时候返回错误码
 
 那么什么时候panic什么时候返回错误枚举呢？个人觉得这个问题还是比较显而易见的，从后端服务器设计角度来讲，进程退出是难以维护的不够健壮的提现，好的后端服务，应该能经受得住各种输入数据而屹立不倒，如果随随便便就退出以示对错误的一种反应，则容易被恶意客户端所利用，造成拒绝服务攻击。
 
