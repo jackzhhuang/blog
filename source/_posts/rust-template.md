@@ -21,6 +21,34 @@ categories:
 
 ### 函数入参模板
 
+假设我们需要做查处整型和字符型数组中，最大的那个元素，那么需要两个函数分别处理：
+
+```rust
+fn find_largest_int(array: &[i32]) -> &i32 {
+    let mut largest = &array[0];
+    for i in array {
+        if largest < i {
+            largest = i;
+        }
+    }
+    largest
+}
+
+fn find_largest_char(array: &[char]) -> &char {
+    let mut largest = &array[0];
+    for i in array {
+        if largest < i {
+            largest = i;
+        }
+    }
+    largest
+}
+```
+
+很明显，两个函数都差不多，更抽象的写法是使用模板，即不管什么类型，都执行加法运算：
+
+
+
 ### 函数返回值模板
 
 ### struct模板
