@@ -1,7 +1,6 @@
 ---
 title: Rust的模版和trait编程
 date: 2023-01-17 13:13:33
-published: false
 tags:
 categories:
 - Rust
@@ -337,4 +336,55 @@ fn collect_summary(s: Tweet) {
 
 
 ### trait bond
+
+trait bond前面已经用到，就是对模板 T 进行有所限制，只有满足特定trait的类型才能实例化。如果需要多个trait限定，就用 + 号来增加trait限定。比如，给Coord增加一个方法，只有实现了对比trait和现实trait的类型才能实例化：
+
+```rust
+use std::fmt::Display;
+
+struct Coord<T> {
+    x: T,
+    y: T,
+}
+
+trait ShowMax {
+   fn show_max(&self) -> String; 
+}
+
+impl<T: Display + PartialOrd> ShowMax for Coord<T> {
+    fn show_max(&self) -> String {
+       if self.x >= self.y {
+            return format!("{}", self.x);
+       }
+
+       format!("{}", self.y)
+    }
+}
+
+fn main() {
+    let c = Coord {
+        x: 30,
+        y: 18,
+    };
+    println!("max = {}", c.show_max());
+}
+```
+
+上面的代码中可以看到，我们对实现ShowMax这个trait进行了trait bond限定，只有能做到Display（进行格式化显示）和PartialOrd（进行大小判断）的类型才能调用。trait bond有助于编译器检查类型是否满足条件。
+
+
+
+## 总结
+
+本章内容比较抽象，有一定的编程经验的人才能看懂，总结几个细节小点：
+
+1、注意模板声明的位置。想使用模板必须先声明，函数模板在函数名称后面声明，struct在struct类型名称后面声明，方法模板则在impl后面声明；
+
+2、struct模板和方法模板可以是两个不同的维度各自声明自己的模板；
+
+3、对trait编程，实现模块间解藕；
+
+4、区分impl trait（静态dispatch，编译时确定）和dyn trait（动态dispatch，运行时确定）两种dispatch机制，已经此时引用的含义；
+
+5、使用trait bond保证模板能有某种trait，帮助编译器检查前置条件。
 
