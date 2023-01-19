@@ -92,7 +92,30 @@ error: could not compile `greeting` due to previous error
 
 ## 返回值模板
 
+不但函数的输入参数可以推断类型，返回值也可以用于推断类型。比如我们需要split一个字符串，把split的结果放到一个数组中，代码可以这么写：
 
+```rust
+fn find_first_word(s: &str) -> &str {
+    let words: Vec<&str> = s.split(&[' ', ',', '.']).collect();
+    if words.len() > 0 {
+        return words.get(0).unwrap();
+    }
+    s
+}
+```
+
+ 这里split()   方法返回一个iterator，并调用其collect() 方法返回一个集合，看源码知：
+
+```rust
+    fn collect<B: FromIterator<Self::Item>>(self) -> B
+    where
+        Self: Sized,
+    {
+        FromIterator::from_iter(self)
+    }
+```
+
+ 其返回的是一个模板B，那么在编译s.split(&[' ', ',', '.']).collect();这段代码的时候编译器怎么知道我们用的是Vec呢？确实，实际上我们可以用Vec，也可以用LinkedList，那么，为了让编译器生成一个返回Vec的方法出来，我们必须在调用的时候显示写出let words: Vec<&str> = ... ，这样编译器才能知道我们需要Vec，于是生成一个返回值为Vec的collect() 方法出来。
 
 
 
