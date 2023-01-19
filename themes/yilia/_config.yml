@@ -1,7 +1,6 @@
 # Header
 
 menu:
-  主页: /
   关于我: "/about/"
   C++: /categories/C/
   Rust: /categories/Rust/
