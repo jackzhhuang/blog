@@ -374,6 +374,27 @@ fn main() {
 
 
 
+### where关键字
+
+trait bond除了可以写在简括号里面，还可以放在函数或者struct名字后面，用where引导出trait bond，比如上面的例子中，可以用where改写成这样：
+
+```rust
+impl<T> ShowMax for Coord<T> 
+    where T: Display + PartialOrd {
+    fn show_max(&self) -> String {
+       if self.x >= self.y {
+            return format!("{}", self.x);
+       }
+
+       format!("{}", self.y)
+    }
+}
+```
+
+
+
+
+
 ## 总结
 
 本章内容比较抽象，有一定的编程经验的人才能看懂，总结几个细节小点：
