@@ -90,6 +90,12 @@ error: could not compile `greeting` due to previous error
 
 
 
+## 返回值模板
+
+
+
+
+
 ### struct模板
 
 和函数模板差不多，我们在struct名称前加上模板声名就可以声明一个模板struct了，后面的字段可以定义对应的类型字段：
