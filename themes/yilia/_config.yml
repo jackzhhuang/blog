@@ -2,7 +2,7 @@
 
 menu:
   主页: /
-  About: "/about/"
+  关于我: "/about/"
   C++: /categories/C/
   Rust: /categories/Rust/
 
