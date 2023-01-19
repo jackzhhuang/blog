@@ -90,7 +90,7 @@ error: could not compile `greeting` due to previous error
 
 
 
-## 返回值模板
+### 返回值模板
 
 不但函数的输入参数可以推断类型，返回值也可以用于推断类型。比如我们需要split一个字符串，把split的结果放到一个数组中，代码可以这么写：
 
