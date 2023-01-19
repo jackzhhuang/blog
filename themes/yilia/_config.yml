@@ -2,6 +2,7 @@
 
 menu:
   主页: /
+  About: "https://www.jackhuang.cc/about/"
   C++: /categories/C/
   Rust: /categories/Rust/
 
