@@ -1,6 +1,7 @@
 ---
 title: Rust的错误处理
 date: 2023-01-16 13:07:36
+toc: true
 tags:
 - Rust
 categories:
@@ -20,8 +21,6 @@ Rust的错误处理主要有以下4点需要学习：
 现在就看看我们Rust的错误处理具体细节吧。
 
 <!--more-->
-
-<!-- toc -->
 
 ## 1. panic!宏
 

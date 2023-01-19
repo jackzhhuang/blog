@@ -1,6 +1,7 @@
 ---
 title: Rust的模版和trait编程
 date: 2023-01-17 13:13:33
+toc: true
 tags:
 - Rust
 categories:
@@ -14,8 +15,6 @@ categories:
 那么，今天就好好看看Rust的模板编程吧。
 
 <!--more-->
-
-<!-- toc -->
 
 ## 模板
 

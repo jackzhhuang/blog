@@ -1,6 +1,7 @@
 ---
 title: Rust的模块化管理
 date: 2023-01-10 23:18:55
+toc: true
 tags:
 - Rust
 categories:
@@ -10,10 +11,6 @@ categories:
 任何语言都离不开一个基本概念——包，Rust当然也不例外。按照官方文档教程说法，Rust最基本的包叫crate，它包含了一个或若干个library文件（库文件）或者binary文件（执行文件）。
 
 <!--more-->
-
-<!-- toc -->
-
-
 
 ## 1. 从最简单的包演化说起
 

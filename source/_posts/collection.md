@@ -1,6 +1,7 @@
 ---
 title: Rust的容器
 date: 2023-01-12 22:42:05
+toc: true
 tags:
 - Rust
 categories:
@@ -20,10 +21,6 @@ categories:
 现在我们就从最常用的容器开始吧。
 
 <!--more-->
-
-<!-- toc -->
-
-
 
 ## 1. 数组Vec
 

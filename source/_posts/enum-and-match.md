@@ -1,6 +1,7 @@
 ---
 title: Rust中的enum和match
 date: 2023-01-08 19:25:24
+toc: true
 tags:
 - Rust
 categories:
@@ -10,10 +11,6 @@ categories:
 今天就来熟悉一下Rust的enum和match语法吧。
 
 <!--more-->
-
-<!-- toc -->
-
-
 
 ## 1. 定义一个enum
 
