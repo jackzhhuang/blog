@@ -2,6 +2,7 @@
 title: Rust中的enum和match
 date: 2023-01-08 19:25:24
 tags:
+- Rust
 categories:
 - Rust
 ---

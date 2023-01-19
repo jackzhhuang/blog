@@ -1,6 +1,8 @@
 ---
 title: Rust所有权
 date: 2023-01-02 16:17:40
+tags:
+- Rust
 categories:
 - Rust
 ---

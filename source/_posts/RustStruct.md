@@ -3,6 +3,7 @@ title: Rust的struct类型
 date: 2023-01-07 17:19:26
 toc: true
 tags:
+- Rust
 categories:
 - Rust
 ---
