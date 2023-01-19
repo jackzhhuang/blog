@@ -2,7 +2,7 @@
 
 menu:
   主页: /
-  About: "https://www.jackhuang.cc/about/"
+  About: "/about/"
   C++: /categories/C/
   Rust: /categories/Rust/
 
@@ -70,7 +70,7 @@ google_analytics: ''
 favicon: /favicon.png
 
 #你的头像url
-avatar:
+avatar: /img/avatar.jpg
 
 #是否开启分享
 share_jia: true
