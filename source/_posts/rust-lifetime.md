@@ -23,6 +23,18 @@ categories:
 
 为什么我们要关注生命周期呢，看看下面这个例子，找出一句话的第一个单词：
 
+```rust
+fn find_first_word(s: &str) -> &str {
+    let words: Vec<&str> = s.split(&[' ', ',', '.']).collect();
+    if words.len() > 0 {
+        return words.get(0).unwrap();
+    }
+    s
+}
+```
+
+可以看到这个
+
 
 
 
