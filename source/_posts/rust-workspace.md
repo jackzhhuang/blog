@@ -1,7 +1,6 @@
 ---
 title: Rust的工作空间（workspace）
 date: 2023-01-26 17:27:20
-published: false
 tags:
 - Rust
 - workspace
@@ -104,7 +103,18 @@ opt-level = 3
 
 
 
-## 使用create.io
+## 使用crates.io
 
-除了自己写 library，还可以求助create.io，上面有很多其他人编写的 libray库，例如我们需要mysql客户端库，但我们不想自己写一个，肯定有人已经写好了，于是我们上create.io：
+除了自己写 library，还可以求助crates.io，上面有很多其他人编写的 libray库，例如我们需要mysql客户端库，但我们不想自己写一个，肯定有人已经写好了，于是我们上crates.io搜索mysql： ![使用create.io搜索第三方库](https://www.jackhuang.cc/images/WX20230127-101853@2x.png)
+
+​	将mysql这个库写入dependencies中：
+
+```rust
+[dependencies]
+rsfile = { path = "../rsfile"}
+rsconfig = { path = "../rsconfig"}
+mysql = "*"
+```
+
+然后编译，可以看到cargo可以自动下载库并建立依赖，直接使用了。
 
