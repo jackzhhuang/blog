@@ -77,7 +77,7 @@ error[E0382]: use of moved value: `common_list`
    |                      ^^^^^^^^^^^ value used here after move
 ```
 
-可见，common_list在第12行的时候就给了 a 链表，b 链表想用是用不了了。此时就需要Rc\<T\>，它和Box\<T\>不同之处就是它实现了多个不可变对象的共享资源：
+可见，common_list在第12行的时候就给了 a 链表，b 链表想用是用不了了。此时就需要Rc\<T\>，它和Box\<T\>不同之处就是它实现了多个不可变对象的共享资源（Box\<T\>可变不可变资源都可以，但只能有一个所有权方）：
 
 ```rust
 use std::rc::Rc;
