@@ -241,7 +241,9 @@ fn school_maker(t: SchoolType) -> Box<dyn SelfIntroduce> {
 
 1、Box\<T\> 只能有一个所有权方；
 
-2、Box\<T\> 只能返回不可变引用。
+2、Box\<T\> 只能返回不可变引用;
+
+3、Box\<T\> 只能单线程使用。
 
 那么如果需要多个所有权，且可变引用的话，就需要后面讲的 Rc\<T\> 和 RefCell\<T\> 了。
 
