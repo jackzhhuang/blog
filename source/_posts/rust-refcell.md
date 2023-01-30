@@ -9,9 +9,7 @@ categories:
 - Rust
 ---
 
-前面讲了Box\<T\> 和 Rc<T\> 两个指针容器，简单总结：Box\<T\> 只能有一个所有权方，而 Rc<T\> 依靠引用计数可以有多个，Box\<T\>可以维护可变不可变资源，而 Rc<T\>  只能是不可变资源，相同点是都只能单线程使用。最后还要注意 Rc<T\> clone方法才能做到正确的带引用计数浅拷贝。
-
-本节要讲的是 RefCell\<T\> ，和 Box\<T\> 一样，都是单所有权属性，且都可以维护可变资源，那么到底 RefCell\<T\> 和  Box\<T\>有什么不一样呢？
+前面讲了Box\<T\> 和 Rc<T\> 两个指针容器，本节要讲的是 RefCell\<T\> ，和 Box\<T\> 一样，都是单所有权属性，且都可以维护可变资源，那么到底 RefCell\<T\> 和  Box\<T\>有什么不一样呢？
 
 <!--more-->
 
@@ -25,11 +23,13 @@ Rust 的优点（可能也是别人认为的缺点）就是尽可能的在编译
 #[derive(Debug)]
 struct Person {
     age: i32,
+    name: String,
 }
 
 fn main() {
     let mut a = Person {
         age: 100,
+        name: String::from("jack"),
     };
     let b = &a;
     let mut c = &mut a;
@@ -59,14 +59,16 @@ Box\<T\> 当然也遵循这点，编译时期 Rust 也检查：
 #[derive(Debug)]
 struct Person {
     age: i32,
+    name: String,
 }
 
 fn main() {
     let mut a = Box::new(Person {
         age: 100,
+        name: String::from("jack"),
     });    
-    let b = &*a;
-    let mut c = &mut *a;
+    let b = a.as_ref();
+    let mut c = a.as_mut();
 
     println!("b = {:?}, c = {:?}", b, c);
 }
@@ -77,31 +79,122 @@ fn main() {
 那么 RefCell\<T\>  呢？当然也遵守，因为一个可变引用和不可变引用同时存在是很危险的，这会导致数据或者逻辑不一致。但其区别就是，RefCell\<T\> 是运行时期才检查，编译时期是可以通过的，一旦运行时被发现违反了这个规则，程序就会panic：
 
 ```rust
-#[derive(Debug)]
-struct Person {
-    age: i32,
-}
-
 fn main() {
-    let mut a = RefCell::new(Person {
-        age: 100,
-    });    
-    let b = &*a.borrow_mut();
-    let c = &mut *a.borrow_mut();
+    let x = RefCell::new(Person {
+        age: 99,
+        name: String::from("jack"),
+    });
 
-    println!("b = {:?}, c = {:?}", b, c);
+    let mut y = x.borrow_mut();
+    y.age = 100;
+    println!("x = {:?}, y = {:?}", x, y);
+
+    let z = x.borrow();
+    
+    println!("x = {:?}, y = {:?}, z = {:?}", x, y, z);
 }
 ```
 
-和 Box\<T\> 和 Rc\<T\> 不一样，RefCell\<T\> 不支持解引用操作（*a），必须显式调用 borrow_mut 方法才能获得其封装的 RefMut\<T\> 对象， RefMut\<T\> 才支持 Deref trait。所以，此时解引用获得 Person 对象再引用即可获得 Person对象的引用。
+和 Box\<T\> 和 Rc\<T\> 不一样，RefCell\<T\> 不支持解引用操作（\*a），必须显式调用 borrow_mut 方法才能获得其封装的 RefMut\<T\> 对象， RefMut\<T\> 才支持 Deref trait。出于可读性，这里不直接用 “&\*a.borrow_mut() ” 这样的写法，而是依赖  RefMut\<T\> 的封装，假设 y 就是 &T （实际上是 RefMut\<T\>，但其表现得像 &T一样）。
 
-因此，b 和 c 都是对 Person 对象的引用，但区别是 b 是不可变引用，而 c 是可变引用。
-
-此时编译成功，因为 RefCell\<T\> 允许它们这么干，但运行时将会panic：
+编译上面的代码，不会像 Box\<T\> 那样出现失败，而是成功编译，但运行到 11行时，会产生 panic，因为 Rust 不允许可变引用和不可变引用同时存在：
 
 ```rust
-thread 'main' panicked at 'already borrowed: BorrowMutError', src/main.rs:13:21
+x = RefCell { value: <borrowed> }, y = Person { age: 100, name: "jack" }
+thread 'main' panicked at 'already mutably borrowed: BorrowError', src/main.rs:19:15
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
-因此，RefCell\<T\> 和 Box\<T\> 区别即是：前者是运行时检查是否违反前述的引用规定，后者是编译时检查。
+也可以看到，一旦 x 被可变引用了，其 value 状态变为被借用，如果两个不可变引用同时存在，那么一点问题都不会有：
+
+```rust
+fn main() {
+    let x = RefCell::new(Person {
+        age: 99,
+        name: String::from("jack"),
+    });
+
+    let y = x.borrow();
+    println!("x = {:?}, y = {:?}", x, y);
+
+    let z = x.borrow();
+
+    println!("x = {:?}, y = {:?}, z = {:?}", x, y, z);
+}
+```
+
+以上代码正常编译且运行无误。
+
+由此可见，RefCell和Box 本质区别就在于，前者是运行时期检查引用规则，若有违反，则panic，后者在编译时期检查引用规则，若有违反，则编译失败。
+
+
+
+## RefCell\<T\> 配合 Rc\<T\> 实现多引用可变类型
+
+我们可以利用Rc\<T\>的 clone 方法绕过 Rust 的运行时检查，从而获得同时存在多个可变引用的变量：
+
+```rust
+fn main() {
+    let x = Rc::new(RefCell::new(Person {
+        age: 99,
+        name: String::from("jack"),
+    }));
+
+    let y = Rc::clone(&x);
+    y.borrow_mut().age = 100;
+    println!("x = {:?}, y = {:?}", x, y);
+
+    let z = Rc::clone(&x);
+    z.borrow_mut().age = 200;
+
+    println!("x = {:?}, y = {:?}, z = {:?}", x, y, z);
+}
+```
+
+可以看到，上面的代码首先用 Rc\<RefCell\<T\>\> 的方式创建了一个对象 x，它终究是Rc，因此，可以利用Rc::clone() 方法又获得一个 y 和 z，然后我们通过点操作直接调用放在 Rc 里面的 Refcell 的 borrow_mut 方法，最终达到了同时多个可变引用的目的。
+
+
+
+## RefCell\<T\> 导致的内存泄漏问题
+
+由于我们可以使用RefCell\<Rc\<T\>\> 创建这么一种类型：即可变且多引用的类型，那么，如果有两个节点，相互引用，那么它们的 Rc 永远无法到达0，也就无法被析构，最终造成内存泄漏：
+
+ ```rust
+ use std::{rc::Rc, cell::RefCell};
+ 
+ #[derive(Debug)]
+ enum Node {
+     Next(i32, RefCell<Rc<Node>>),
+     Nil,
+ }
+ 
+ use Node::Next;
+ use Node::Nil;
+ 
+ impl Drop for Node {
+     fn drop(&mut self) {
+         if let Next(t, _) = self {
+             println!("the node will be drop, {}", t);
+         }
+     }
+ }
+ 
+ fn main() {
+     let x = Rc::new(Next(1, RefCell::new(Rc::new(Nil))));
+     let y = Rc::new(Next(2, RefCell::new(Rc::new(Nil))));
+ 
+     if let Next(_, next) = x.as_ref() {
+         *next.borrow_mut() = Rc::clone(&y);
+     }
+     if let Next(_, next) = y.as_ref() {
+         *next.borrow_mut() = Rc::clone(&x);
+     }
+ 
+     let p = Rc::new(Next(999, RefCell::new(Rc::new(Nil))));
+ }
+ ```
+
+上面的代码中，首先 x 和 y 都是 Rc，然后它们内部又有指针指向另一个Rc，初始化的时候先都初始化为 Nil，然后通过RefCell\<T\> 的可变性，把它们都各指向对方，于是，main 函数结束的时候，x 的Rc减 1，但原始值为 2，因为 y 有它的引用，所以 2 - 1 = 1，不为 0，x不析构，同理，y 也不会析构，于是内存泄漏了。
+
+上面的 p 是用于观察正常情况下析构是否进行的。
+
