@@ -3,10 +3,10 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: Jack Huang的技术生活
-subtitle: '一些关于技术的思考，想法和积累'
+title: 热爱积累与沉淀
+subtitle: '这里将记录一些关于技术的积累和沉淀'
 description: ''
-keywords: C/C++,RUST,Python,nodejs,Java,Mysql
+keywords: C/C++,RUST,Python,Mysql,Linux,Database
 author: Jack Huang
 language: zh-CN
 timezone: 'Asia/Shanghai'
