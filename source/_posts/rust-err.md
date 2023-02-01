@@ -22,7 +22,7 @@ Rust的错误处理主要有以下4点需要学习：
 
 <!--more-->
 
-## 1. panic!宏
+## panic!宏
 
 这个是最简单也是最暴力的错误解决处理方案，即直接中断程序运行，并且报告程序错误。如果程序无法继续往下执行，那么，尽早中断也是不错的选择，关键是，如果配合环境变量RUST_BACKTRACE=1的话，还可以打印从panic的地方开始的调用栈，方便快速定位问题：
 
@@ -65,7 +65,7 @@ note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose bac
 
 
 
-## 2. 使用Result\<T, E\>
+## 使用Result\<T, E\>
 
 大部分错误都是可以容忍的，或者说我们可以继续保持程序继续运行，同时给用户一个友好提示，所以给一个恰当的提示是大多数场景。这个时候我们一般使用Result\<T, E\>。这是一个很简单但非常有用且常用的枚举类型，其源代码为：
 
@@ -125,7 +125,7 @@ fn main() {
 
 
 
-## 3. 用expect代替panic!宏
+### 用expect代替panic!宏
 
 如果我们只是想遇到错误就直接panic，那么expect可以帮助我们少写一次 match 或则 if ：
 
@@ -147,7 +147,39 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 
 
-## 4. 用 ? 来简化返回的错误值处理
+### 用unwrap代替panic宏
+
+除了 expect 方法，unwrap 也可以替代panic，如果我们不去处理 unwrap 的返回值，那么 Rust 会直接打印 panic，并打印出 Error 信息：
+
+```rust
+std::fs::read_to_string("nofile.txt").unwrap();
+```
+
+此时运行会panic：
+
+```rust
+thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }', src/main.rs:20:43
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
+
+如果我们主动处理 Err，那么则正常运行：
+
+```rust
+    let handle = std::fs::read_to_string("nofile.txt");
+    if let Err(e) = handle {
+        println!("the error from reading nofile.txt: {:?}", e);
+    }
+```
+
+输出为：
+
+```rust
+the error from reading nofile.txt: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+```
+
+
+
+## 用 ? 来简化返回的错误值处理
 
 Rust提供了了 ? 号来帮助我们简化这种常见的Result\<T, E\>判断。? 其实就是一段简单的逻辑，即，如果返回的是Err那么就直接返回，如果是Ok则继续往下执行：
 
@@ -180,7 +212,7 @@ fn main() {
 
 
 
-## 5. 返回其它类型的错误
+## 返回其它类型的错误
 
 上面可以看到，我们返回的错误Err\<E\>中，类型都是一致的，也即std::io::Error ，但如果我们不想返回这个类型的错误的话呢？这个时候会发生错误：
 
@@ -218,7 +250,7 @@ error[E0308]: mismatched types
 
 
 
-## 6. 使用Optional\<T\>也是一种选择
+## 使用Optional\<T\>也是一种选择
 
 Optional\<T\>也可以像Result\<T, E\>那样用，如果是None那么就直接返回，否则就继续处理，比如前面的HashMap，我们get一个key，若存在，则乘以二返回，否则就返回None：
 
@@ -247,7 +279,7 @@ fn main() {
 
 
 
-## 7. 什么时候panic什么时候返回错误码
+## 什么时候panic什么时候返回错误码
 
 那么什么时候panic什么时候返回错误枚举呢？个人觉得这个问题还是比较显而易见的，从后端服务器设计角度来讲，进程退出是难以维护的不够健壮的提现，好的后端服务，应该能经受得住各种输入数据而屹立不倒，如果随随便便就退出以示对错误的一种反应，则容易被恶意客户端所利用，造成拒绝服务攻击。
 
