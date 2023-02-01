@@ -1,7 +1,6 @@
 ---
 title: 无惧并发
 date: 2023-01-31 17:46:41
-published: false
 tags:
 - multiple-thread
 - Rust
@@ -396,13 +395,157 @@ fn main() {
 
 注意，sender 是在第 14 行，因此，子线程的 recv 是会阻塞的，直到主线程的 sender 发消息过来。recv 方法返回的是 Result，如果没问题，我们将会在子线程收到 Person 对象，否则则是Err。
 
-主线程启动子线程后，会使用sender 调用 send 方法
+主线程启动子线程后，会使用sender 调用 send 方法将 Person 传递给子线程，此时 recv 会结束阻塞，返回Result，若成功，unwrap 出来则是Person对象。
 
-### mutex\<T\> 与 Arc\<T\>
+注意，Person 对象 send给子线程后，主线程就失去所有权了。
+
+子线程若不想阻塞，可以调用 try_recv，如果子线程需要周期性的处理一些事情，可以写个循环，try_recv 一次，然后再处理一下其它事情，可以用多 sender 写个例子。
+
+
+
+### 多sender
+
+对于 sender，我们可以简单的调用 clone 来获得更多的生产者：
+
+```rust
+fn main() {
+    let (sender, recv) = sync::mpsc::channel();
+
+    let handle = std::thread::spawn(move || {
+        loop {
+            match recv.try_recv() {
+                Ok(message) => {
+                    println!("receive messge: {:?}", message);
+                },
+                TryRecvError => {
+
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+    });
+
+    let message = vec!["hello".to_string(), "world".to_string(), "!".to_string()];
+
+    for m in message {
+        let new_sender = sender.clone();
+        new_sender.send(m).unwrap();
+    }
+
+    handle.join().unwrap();
+}
+```
+
+上面的第 21 行就是 sender 通过 clone 方法直接创建了多个生产者。接受者则使用了 try_recv 来拉取消息。
+
+
+
+### Mutex\<T\> 与 Arc\<T\>
+
+前面一节讲过，Rc 和 RefCell 是不能用于多线程的，如果有一个资源需要多线程共享，那么我们就需要 Arc\<T\> 来进行引用计数，因为它的引用计数是原子的，即 atomic reference count。Arc\<T\> 和 Rc\<T\> 是一样的，只是它还能支持多线程使用。
+
+同样，因为多个线程要修改这个资源，那么就需要 Mutex\<T\> 去代替 RefCell<T\>。Mutex\<T\> 同样和  RefCell<T\> 一样，但还能用于多线程。
+
+因此，若想实现多个线程同时修改一个资源，那么就需要 Arc\<Mutex\<T\>\> 。
+
+```rust
+use std::{thread, sync::{self, mpsc::{Sender, RecvError, TryRecvError}, Arc, Mutex}};
+
+#[derive(Debug)]
+struct Person {
+    score: u32,
+    name: String,
+    title: Option<String>,
+}
+
+fn main() {
+    let boy = Arc::new(Mutex::new(Person {
+        score: 0,
+        name: "jack".to_string(),
+        title: None,
+    }));
+
+    let score_arc = Arc::clone(&boy);
+    let score_handle = std::thread::spawn(move || {
+        loop {
+            let mut p = score_arc.lock().expect("no person!");
+            println!("add the score");
+            if p.score == 8 {
+                println!("score is up to 8");
+                break;
+            }
+            p.score += 1;
+            println!("one year pass");
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+    });
+
+    let title_arc = Arc::clone(&boy);
+    let title_handle = std::thread::spawn(move || {
+        loop {
+            let mut p = title_arc.lock().expect("no person!");
+            println!("check the score");
+            if p.score == 8 {
+                p.title = Some(String::from("PhD"));
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    });
+
+    loop {
+        if let Some(title) = &boy.lock().unwrap().title {
+            println!("the boy get title: {}",title);
+            break;
+        }
+    }
+}
+```
+
+上面的代码中，score_handle 这个线程不停的加分数，title_handle 这个线程不停的检查分数是否达标，若达标，则授予PhD，而主线程则不停的检查 title。
+
+三个线程都在争夺 Person 对象资源，因此，Person 对象资源放在Mutex中。同时，多个线程需要访问 Mutex，需要对 Mutex 进行引用计数，因此，Mutex 放在 Arc 中。
+
+其中的 lock 函数将会获得资源，若资源被占用，则线程 阻塞在 lock 函数。lock 函数返回 LockGuard，当超出作用域（即每次 loop 循环）则自动释放 lock，因此，三个线程都在争夺 Person 资源，从输出可以看出的确如此：
+
+```rust
+add the score
+one year pass
+add the score
+one year pass
+add the score
+one year pass
+add the score
+one year pass
+add the score
+one year pass
+add the score
+one year pass
+add the score
+one year pass
+add the score
+one year pass
+add the score
+score is up to 8
+check the score
+the boy get title: PhD
+```
 
 
 
 ## 注意死锁
 
+尽管 Rust 已经做了很多防止悬挂指针的操作，但依然还是无法防止运行时的错误，死锁就是这样，因为这个不可能通过编译时就能找出来。
 
+最常见的死锁就是两个线程户等对象已经持有的锁，比如 A 线程拿着 A 锁等 B 线程释放 B 锁，而 B 线程拿着 B锁等 A 线程释放 A 锁，这样A 和B永远无法解开。
+
+防止这种死锁发生的关键是，每次使用锁的时候，应该多考虑以下问题；
+
+1、是否必须加锁不可；实际上，胡乱加锁是出现死锁的重要原因，所以每次想到要加锁，那么就要好好思考：是否有不需要加锁的设计或者现有的锁已经可以满足需求；加锁并不是一件很酷的事情，实际上不到万不得已，就不去加锁。
+
+2、如果非要加锁，那么对同一个资源的加锁操作需要保证顺序一致，互等死锁的问题就在于两个线程加锁顺序不一致造成的；也可以理一下，为什么访问一个资源要加两个锁？这种设计是否已经出问题？
+
+3、锁的粒度是否过细；过细的锁很容易造成死锁，当然过粗的锁也会降低并行效率；可以回到第一步好好考虑是否应该加锁。
+
+4、针对业务逻辑建立标准的生产者消费者模型或者规范可以很好的防止死锁发生。因为模型或者规范一旦建立，我们只需要集中写逻辑就行了，无需再对资源争夺问题想太多，少写危险代码就少点风险。底层的逻辑一旦建立好，就应该依赖或者复用，防止反复踩坑。
 
