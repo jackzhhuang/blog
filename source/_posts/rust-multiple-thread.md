@@ -558,3 +558,149 @@ Send trait 可以让类型获得可以 send 的能力，Rust 几乎所有的类�
 Sync trait 则可以让类型获得多线程访问的能力，同样， Rc\<T\> 也是不能用于多线程的，RefCell\<T\> 也是，必须用 Mutex\<T\>代替。
 
 一般情况下不会去手动实现 Send  和 Sync trait，因为它们是 unsafe 的，而且大部分类型都已经是有这两个 trait了，用它们组合而成的 类型也会带有 Send  和 Sync trait。
+
+
+
+## 注意 join 方法
+
+spawn生成一个线程后，其返回值是一个 JoinHandle，我们调用它的 join 方法等待线程结束，需要留意的是，join 方法的入参是 self 而不是&self，也就是说，join 后 handle 会失效。这就会有可能造成悬空指针。
+
+可见，join 一般是等待线程结束时使用，之后就不应该再去操作线程了。
+
+
+
+## 多线程下 trait 的 'static 属性
+
+之前的 move 会把所有权移入线程中：
+
+```rust
+#[derive(Debug)]
+struct Person {
+    score: u32,
+    name: String,
+}
+
+fn main() {
+    let p = Person {
+        score: 100,
+        name: "jack".to_string(),
+    };
+    let handle = std::thread::spawn(move || {
+        println!("p = {:?}", p);
+    });
+
+    handle.join().unwrap();
+}
+```
+
+ move会把 p 所有权移入线程，但如果改成移入一个引用就会报错了：
+
+```rust
+    let p = Person {
+        score: 100,
+        name: "jack".to_string(),
+    };
+    let a = &p;
+    let handle = std::thread::spawn(move || {
+        println!("a = {:?}", a);
+    });
+
+    handle.join().unwrap();
+```
+
+编译结果如下：
+
+```rust
+error[E0597]: `p` does not live long enough
+  --> src/main.rs:14:13
+   |
+14 |       let a = &p;
+   |               ^^ borrowed value does not live long enough
+15 |       let handle = std::thread::spawn(move || {
+   |  __________________-
+16 | |         println!("a = {:?}", a);
+17 | |     });
+   | |______- argument requires that `p` is borrowed for `'static`
+...
+20 |   }
+   |   - `p` dropped here while still borrowed
+```
+
+ 这个很容易理解，主线程可能已经析构 p，但 a 引用还在，此时就是典型的悬挂指针了。因此这里是不应该允许 move 引用的。改成 template 也会出现同样的问题：
+
+```rust
+#[derive(Debug)]
+struct Person {
+    score: u32,
+    name: String,
+}
+
+fn some_print<T, F>(f: F) 
+        where T: std::fmt::Debug,
+              F: Fn() -> T {
+    let a = f();
+    let handle = std::thread::spawn(move || {
+        println!("a = {:?}", a);
+    });
+
+    handle.join().unwrap();
+}
+
+fn main() {
+    some_print(|| {
+        Person {
+            score: 100,
+            name: "jack".to_string(),
+        }
+    });
+}
+```
+
+编译上面的代码会有以下错误：
+
+```rust
+error[E0277]: `T` cannot be sent between threads safely
+  --> src/main.rs:13:18
+   |
+13 |       let handle = std::thread::spawn(move || {
+   |  __________________^^^^^^^^^^^^^^^^^^_-
+   | |                  |
+   | |                  `T` cannot be sent between threads safely
+14 | |         println!("a = {:?}", a);
+15 | |     });
+   | |_____- within this `[closure@src/main.rs:13:37: 15:6]`
+   |
+note: required because it's used within this closure
+  --> src/main.rs:13:37
+   |
+13 |       let handle = std::thread::spawn(move || {
+   |  _____________________________________^
+14 | |         println!("a = {:?}", a);
+15 | |     });
+   | |_____^
+note: required by a bound in `spawn`
+help: consider further restricting this bound
+   |
+10 |         where T: std::fmt::Debug + std::marker::Send,
+   |                                  +++++++++++++++++++
+```
+
+这里的问题就是出在我们打算把 a move 进线程中时，Rust 需要我们保证 a 有以下能力：
+
+1、可以 move 的能力，这个需要Send trait；（详见：https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/std/marker/trait.Send.html ）
+
+2、保证 a 的生命周期覆盖整个线程生命周期。这个是似乎是显而易见的，但为什么呢？因为 Rust 怕我们把引用给 move 进去了，就好像前一个例子，a 是 p 的引用，此时 move a 到线程中是会出现悬空指针的。解决方案是向 Rust 保证：move a 到线程后，它的生命周期会完全覆盖线程的生命周期，使用 'static 生命周期即可。（这里和引用参数中的 'static 不一样，引用参数的 'static 是说这个引用是固化在常量存储区中的，它随进程的生命周期一起开始和结束）。修改方法如下：
+
+```rust
+fn some_print<T, F>(f: F) 
+        where T: std::fmt::Debug + Send + 'static,
+              F: Fn() -> T {
+    let a = f();
+    let handle = std::thread::spawn(move || {
+        println!("a = {:?}", a);
+    });
+
+    handle.join().unwrap();
+}
+```
+
