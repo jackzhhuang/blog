@@ -12,7 +12,7 @@ categories:
 
 <!--more-->
 
-## 1. 定义一个enum
+## 定义一个enum
 
 枚举类型从来不缺席任何一个稍微高级的语言。Rust也不例外，定义一个枚举只需要enum关键字即可，比如我们定义IP地址类型，其有两种格式，V4和V6版本：
 
@@ -54,7 +54,7 @@ fn main() {
 
 
 
-### 1.1 给enum绑定值
+### 给enum绑定值
 
 上面的例子，IpAddressType定义了V4和V6两个类型，要使用它们去标识一个IP需要和String类型一起使用，即IpAddressType标识String的内容是V4还是V6，enum实际上还可以和一个类型绑定，使得其不但有类型属性，还有值属性，比如上面的例子，可以简化为这样：
 
@@ -123,7 +123,7 @@ point = Point { x: 100, y: 120 }
 
 
 
-### 1.2 给enum加上成员方法
+### 给enum加上成员方法
 
 enum甚至可以加上成员方法，比如我们给IpAddress添加一个方法：
 
@@ -150,7 +150,7 @@ this is an enum!
 
 
 
-### 1.3 enum和struct的区别
+### enum和struct的区别
 
 看上去enum和struct大部分是一样的，它们可以定义字段，定义方法，但也有细微的不同，首先当然是一个是用struct关键字定义，一个是用enum定义。
 
@@ -209,7 +209,9 @@ it is v6
 
 
 
-## 2. match控制流
+## match控制流
+
+### 简单的 match
 
 上面的代码用到了match语法，match其实就是C++中的switch，关键是：match强制检查所有enum类型，否则报错，也就是必须要么枚举所有的类型，或者使用下划线 _  来指定匹配之前的类型都失败则执行默认行为。比如之前的match判断就枚举了V4和V6的所有枚举，但如果遇到整型，由于不可能枚举所有整形，就需要默认分支，也即下划线来保证所有的分支都有考虑到：
 
@@ -223,7 +225,7 @@ it is v6
  }
  ```
 
-注意，每一个rust分支都是以逗号“,”结尾。我们也可以加上大括号，写一些语句：
+注意，每一个rust分支都是以逗号“,”结尾（经测试不加逗号也能通过编译，但很多代码习惯以逗号分割）。我们也可以加上大括号，写一些语句：
 
 ```rust
 fn is_24_or_30(i: i32) {
@@ -244,7 +246,91 @@ fn is_24_or_30(i: i32) {
 
 
 
-## 3. 一个常用的enum：Optional\<T\>
+### 稍显复杂的match
+
+实际上，match 还可以玩出各种花来，比如范围match：
+
+```rust
+    let a = 5;
+    match a {
+        1..=4 => { println!("it is between 1 and 4")}
+        5..=9 => { println!("it is between 5 and 9")}
+        _ => { println!("it is not in 1 to 9")}
+    }
+```
+
+注意，这里只支持 ..= 这样的闭区间 match，再比如使用 Some 可以针对性的萃取：
+
+```rust
+    let a = Some(5);
+    match a {
+        Some(1..=4) => { println!("it is between 1 and 4")}
+        Some(5..=9) => { println!("it is between 5 and 9")}
+        Some(_) => { println!("it is not in 1 to 9")}
+        None => { println!("it is None")}
+    }
+```
+
+
+
+### @绑定
+
+ 我们还可以顺便在范围 match 的时候顺便绑定一个值：
+
+```rust
+    let a = 6;
+    match a {
+        num@1..=4 => { println!("it is between 1 and 4, it is {}", num)}
+        num@5..=9 => { println!("it is between 5 and 9, it is {}", num)}
+        _ => { println!("not in 1 to 9")}
+    }
+```
+
+输出为：
+
+```rust
+it is between 5 and 9, it is 6
+```
+
+可以看到使用 num@ 可以直接绑定范围中的值。
+
+
+
+### 更复杂的 match
+
+我们还是用很复杂的内容进行绑定：
+
+```rust
+#[derive(Debug)]
+struct Person {
+    age: i32,
+    name: String,
+}
+
+fn main() {
+    let a = Some(Person {
+        age: 99,
+        name: "jack".to_string(),
+    });
+
+    match a {
+        Some(Person { age: x, name: y, }) => { println!("match age: {} and name {}", x, y)}
+        None => { println!("it is None")}
+    }
+}
+```
+
+输出为：
+
+```rust
+match age: 99 and name jack
+```
+
+ 这里再强调一下，再使用 match 之类的时候可能会造成所有权转移，比如上面的 Some 中，name 实际会获得 a.name 的所有权。
+
+
+
+## 一个常用的enum：Optional\<T\>
 
 可以讲讲Optional\<T\>了。它实际上是一个enum，其源代码如下：
 
@@ -320,7 +406,7 @@ pub enum Option<T> {
 
 
 
-## 4. if let用法
+## if let 用法
 
 上面讲了match处理Optional\<T\>的方法，如果你只是对某个枚举类型感兴趣但其它都做默认处理的话，就可以使用if let用法。这样可以比较自然的写出对枚举类型的处理，其实也可以少打一些代码。
 
@@ -343,7 +429,7 @@ fn what_kind(k: &Option<IpAddress>) {
 
 
 
-## 5. 使用match和if let的注意事项
+## 使用match和if let的注意事项
 
 match和if let的使用算是讲完了，但有一个不起眼的事情需要提一下，就是match和if let是会发生资源转移的，例如：
 
@@ -416,3 +502,36 @@ help: borrow this field in the pattern to avoid moving `ip1.0`
 ```
 
  总结来说，使用match或者if let一定要小心，如果不想发生资源转移，那么就用引用来代替，编译器给出了不错的建议。
+
+
+
+## while let 用法
+
+和 if 一样， while let 也可以用于萃取枚举中的变量：
+
+```rust
+    let a = Some(2);
+
+    while let Some(x) = a {
+        println!("x = {}", x);
+    }
+```
+
+和 if let 不同的是，while let 是一个循环，会不停的检查 Some(x) = a 是否匹配上，如果是，则会不停的执行prin，因此这个是一个无限循环。while let 一般用于集合中的元素：
+
+```rust
+    let mut a = vec![1, 2, 3];
+
+    while let Some(x) = a.pop() {
+        println!("x = {}", x);
+    }
+```
+
+while 循环 pop 出所有的元素，知道 pop 出 None 为止。输出为：
+
+```rust
+x = 3
+x = 2
+x = 1
+```
+
