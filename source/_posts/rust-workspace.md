@@ -2,8 +2,6 @@
 title: Rust的工作空间（workspace）
 date: 2023-01-26 17:27:20
 tags:
-- Rust
-- workspace
 categories:
 - Rust
 ---

@@ -2,8 +2,6 @@
 title: Rust 的高级特性
 date: 2023-02-03 18:57:38
 tags:
-- Rust
-- Rust advanced fetures
 categories:
 - Rust
 ---

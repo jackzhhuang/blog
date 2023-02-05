@@ -3,7 +3,6 @@ title: Rust的模版和trait编程
 date: 2023-01-17 13:13:33
 toc: true
 tags:
-- Rust
 categories:
 - Rust
 ---

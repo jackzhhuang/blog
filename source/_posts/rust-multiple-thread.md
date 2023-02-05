@@ -2,8 +2,6 @@
 title: 无惧并发
 date: 2023-01-31 17:46:41
 tags:
-- multiple-thread
-- Rust
 categories:
 - Rust
 ---

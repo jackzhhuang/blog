@@ -2,9 +2,6 @@
 title: Rust的Rc容器
 date: 2023-01-29 10:14:33
 tags:
-- Rust
-- Smart Pointer
-- 智能指针
 categories:
 - Rust
 ---

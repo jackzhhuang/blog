@@ -2,9 +2,6 @@
 title: 闭包和迭代器
 date: 2023-01-25 14:44:32
 tags:
-- Rust
-- Closure
-- Iterator
 categories:
 - Rust
 ---

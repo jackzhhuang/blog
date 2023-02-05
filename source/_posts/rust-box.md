@@ -2,9 +2,6 @@
 title: Rust的box容器
 date: 2023-01-28 08:22:51
 tags:
-- Rust
-- Box<T>
-- 智能指针
 categories:
 - Rust
 ---
