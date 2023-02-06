@@ -687,7 +687,7 @@ help: consider further restricting this bound
 
 1、可以 move 的能力，这个需要Send trait；（详见：https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/std/marker/trait.Send.html ）
 
-2、保证 a 的生命周期覆盖整个线程生命周期。这个是似乎是显而易见的，但为什么呢？因为 Rust 怕我们把引用给 move 进去了，就好像前一个例子，a 是 p 的引用，此时 move a 到线程中是会出现悬空指针的。解决方案是向 Rust 保证：move a 到线程后，它的生命周期会完全覆盖线程的生命周期，使用 'static 生命周期即可。（这里和引用参数中的 'static 不一样，引用参数的 'static 是说这个引用是固化在常量存储区中的，它随进程的生命周期一起开始和结束）。修改方法如下：
+2、保证 a 的生命周期覆盖整个线程生命周期。这个是似乎是显而易见的，但为什么呢？因为 Rust 怕我们把引用给 move 进去了，就好像前一个例子，a 是 p 的引用，此时 move a 到线程中是会出现悬空指针的。解决方案是向 Rust 保证：move a 到线程后，它的生命周期会完全覆盖线程的生命周期，直接点讲，在模板中增加 'static trait 意味着此处只能使用实际类型，而不能使用引用类型作为模板。（这里和引用参数中的 'static 不一样，引用参数的 'static 是说这个引用是固化在常量存储区中的，它随进程的生命周期一起开始和结束）。修改方法如下：
 
 ```rust
 fn some_print<T, F>(f: F) 
