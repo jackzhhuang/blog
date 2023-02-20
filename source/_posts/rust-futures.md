@@ -1,7 +1,6 @@
 ---
 title: Rust 异步编程（二）：Future 和 Wake 
 date: 2023-02-20 09:56:48
-published: false
 tags:
 categories:
 - Rust
@@ -170,7 +169,7 @@ Task 的 new 方法接受一个 Future 和 sender，这当然是为了初始化�
 
 画成图是这样：
 
-
+![异步调用示例](https://www.jackhuang.cc/svg/rust-future-poll.svg)
 
 可以看到，Task 和 Future 是相互包含，引用的。
 
@@ -178,9 +177,85 @@ Task 实现了 Wake trait，放在 Future 中，当 Future 完成 IO 阻塞操�
 
 Future trait 同样也包含在 Task 中，因为 Task 被放入队列后会被 Receiver 调度，即调用其 poll 方法，获得 Pending 状态或者 Ready。Pending 状态则 Task 一边执行去，不阻塞 Receiver，而 Ready 状态则绑定了返回值。
 
+![Task 和 Future 的关系](https://www.jackhuang.cc/svg/rust-future-task.svg)
 
 
 
+## Context 出场
+
+了解上面的关系后，现在该讲讲 Context 了。为什么 Future 在获取 Task，也即 waker 的时候没有直接去使用 waker 呢？这是因为 Context 封装了上下文，目前的确只有 waker，但这也为以后扩展留下了更好的封装。
+
+
+
+## executor 驱动
+
+现在，可以写我们的 executor 函数了，它无非就是把上面提到的receiver做的时候做一遍：
+
+```rust
+async fn excutor(queue: Receiver<Arc<Task<String>>>) {
+    loop {
+        match queue.recv() {
+           Ok(task) => {
+                let waker = waker_ref(&task);
+                let contex = &mut Context::from_waker(&*waker);
+                let mut fut = task.fut.lock().unwrap();
+                if let Some(mut f) = fut.take() {
+                    let result = f.as_mut().poll(contex);
+                    if  result.is_pending() {
+                        *fut = Some(f);
+                    } else if let Poll::Ready(s) = result {
+                        println!("finish and receive: {}", s);
+                        break;
+                    }
+                }
+           } 
+           Err(_) =>  {
+
+           }
+        }
+    }
+}
+
+fn main() {
+    // 创建消息队列
+    let (sender, queue) = sync_channel::<Arc<Task<String>>>(10);
+
+  	// 创建任务，即我们的异步函数
+    let task = Task::<String>::new(sender.clone(), SayHelloInPending::new(2 * 1000).boxed());
+
+  	// 发送到队列，开始调度
+    sender.send(Arc::new(task)).unwrap();
+    
+  	// 执行调度
+    block_on(executor(queue));
+}
+```
+
+可以看到，executor 执行的就是前面讲的内容，注意 Task 是如何专为 waker 的，以及 Context 对象的生成。
+
+
+
+## 总结
+
+以上可见，Rust 的异步编程是靠 Future 这个关键 trait 实现的，通过调用 poll 方法知道“函数”的状态，若是阻塞，则我们的主线程也即executor 会处理下一个 Task，若就绪，则获得函数的返回值。
+
+我们日常编程当然不需要写这么复杂的代码，这里主要是在学习 Rust 的异步编程模型，实际上，Rust 的异步库都帮我们封装好了以上这些内容，我们在使用各个异步库的时候，只需要像前面一节课讲的那样，调用 Future 的 await 即可实现异步编程了。我们看看，如果把本节内容实现的东西写成 await 是什么样子，以下是伪代码：
+
+```rust
+    async fn SayHelloInPending() -> String {
+        // ...
+    }   
+		let result = SayHelloInPending().await;
+    println!("result = {}", result);
+```
+
+ 就一行 await 即可。当执行到 await 时，由于 SayHelloInPending 需要等待 IO 完成，此时主线程不会阻塞在 await 这个地方，此时相当于调用了 Future 的 poll 方法，主线程发现是Pending于是跑去执行别的 aysnc 函数（即下一个 Task 的 Future）去了，等到 await 返回才又继续往下执行println（即这个 Task wake 方法调用了 sender 把 Task 放入队列继续给调度器执行）。这段代码后面的奥妙，正式本节讲的内容。
+
+
+
+## 遗留问题
+
+前面提到了一些我们直接忽略的东西，比如：Pin 这个类型，Pin 到底是什么，为什么Future 放入 Box 的时候要变成 Box\<Pin\<T\>\>，也即 BoxFuture？下一节我们继续前进吧！
 
 
 
