@@ -38,7 +38,8 @@ async fn SayHelloInPending -> String {
 impl Future for SayHelloInPending {
     type Output = String;
 
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output {
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) 
+  				-> std::task::Poll<Self::Output {
       // ...
   }
  
@@ -95,7 +96,8 @@ impl SayHelloInPending {
 impl Future for SayHelloInPending {
     type Output = String;
 
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) 
+  				-> std::task::Poll<Self::Output> {
         let shared_data = self.shared_data.lock();
         if let Ok(mut data) = shared_data {
             if data.completed {
@@ -231,7 +233,7 @@ fn main() {
 }
 ```
 
-可以看到，executor 执行的就是前面讲的内容，注意 Task 是如何专为 waker 的，以及 Context 对象的生成。
+可以看到，executor 执行的就是前面讲的内容，注意 Task 是如何转为 waker 的，以及 Context 对象的生成。
 
 
 
