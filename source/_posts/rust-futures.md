@@ -22,3 +22,154 @@ categories:
 本节将会把 await 展开，引入关键的两个 trait： Future 和 Wake，把 Rust 的异步编程模型说清楚。
 
 <!--more-->
+
+## 异步函数改写成 Future
+
+上一节中，我们在函数前加了一个 async 关键字，此时会发现函数会变成一个feture，即我们的代码如下：
+
+```rust
+async fn SayHelloInPending -> String {
+	// ...
+} 
+```
+
+实际上，编译器会把它变成：
+
+```rust
+impl Future for SayHelloInPending {
+    type Output = String;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output {
+      // ...
+  }
+ 
+```
+
+也就是，任何一个异步函数，都会被化成一个个 future。future trait 的定义如下：
+
+```rust
+pub trait Future {
+  type Output;
+  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output>;
+}
+```
+
+其关键的函数就是poll，poll 主要是返回一个Poll enum，它要么是 Ready(T)，表示阻塞完成，可以继续执行，T 即函数的返回值，或者Pending 表示函数依然在等待 IO 完成。
+
+因此，我们只需要把定义的函数写成一个 struct，struct 实现 Future trait，并实现函数需要的阻塞 IO 逻辑即可，当然这个逻辑是在线程中执行，因为不能阻塞 main 线程，main 线程调用 Future trait 的 poll 的会检查阻塞的状态，若未完成，这个 poll 返回 Pending，否则返回 Ready(T)。
+
+例如我们要实现一个 n 毫秒后返回 completed 字符串的函数，main 主线成会不等这个 n 毫秒，而是继续处理其它已经就绪的 Future，当 n 毫秒完过后，会把 Future 放入队列等待主线程 调度。
+
+我们的异步函数会被写成这样（此时不再使用 async）：
+
+```rust
+struct SayHelloInPending {
+    shared_data: Arc<Mutex<SharedData>>,
+}
+
+struct SharedData {
+    completed: bool,
+    waker: Option<Waker>,
+}
+
+impl SayHelloInPending {
+   fn new(millis: u64) -> Self  {
+        let task = SayHelloInPending { 
+            shared_data: Arc::new(Mutex::new(SharedData { 
+                completed: false, 
+                waker: None 
+            })) 
+        };
+        let shared_data_clone = Arc::clone(&task.shared_data);
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(millis));
+            let mut data = shared_data_clone.lock().unwrap();
+            data.completed = true;
+            if let Some(w) = data.waker.take() {
+                w.wake();
+            } 
+        });
+        task
+   }
+}
+
+impl Future for SayHelloInPending {
+    type Output = String;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+        let shared_data = self.shared_data.lock();
+        if let Ok(mut data) = shared_data {
+            if data.completed {
+                return Poll::Ready("completed".to_string());
+            } else {
+                data.waker = Some(cx.waker().clone());
+            }         
+        }
+        Poll::Pending
+    }
+}
+```
+
+可以看到，SayHelloInPending 就是我们的异步函数，现在换成了用 struct 实现，它的成员被放在了 SharedData 里面，并用 Arc 和 Mutex 保护起来，因为 Future 一来被 IO 线程读写，二来也会被主线程读写，因此需要这两个异步容器保护。SharedData 保护了 completed 字段，表示 IO 是否已经完成，初始值为 false。至于 waker 我们待会再说。
+
+在 new 出 SayHelloInPending 的时候，我们启动了一个线程 sleep 了 n 毫秒用以模拟 IO 操作所需要的时间，可以看到，当 sleep 结束的时候，我们会调用 waker 的 wake 函数，这个名字看上去是要唤醒什么，实际上即触发我们之前提到的 sender 讲就绪的 Future 发给队列，等待 main 线程再次调用 poll 获得返回值。我们待会再说 waker 的更进一步细节。
+
+之后的 impl Future for SayHelloInPending 块中，即实现了 Future trait，我们先不看 pin 和 context，就看里面的实现细节，可以看到，主要就是检查线程是否 completed，如果是，则返回 completed，否则返回 Pending状态。
+
+这样我们就封装好了一个异步“函数” （Future）。
+
+
+
+## 封装Task
+
+那么主线程怎么调用上面封装的 Future 呢？这里封装了一个 Task，毕竟 Future 可以很多，但是我们需要抽象出 Task 方便 sender 发消息给到队列。
+
+我们看看 Task 的代码：
+
+```rust
+struct Task<T> {
+    fut: Mutex<Option<BoxFuture<'static, T>>>,
+    sender: SyncSender<Arc<Task<T>>>,
+}
+
+impl<T> Task<T> {
+    pub fn new(sender: SyncSender<Arc<Task<T>>>, f: BoxFuture<'static, T>) -> Self {
+        Task {
+            fut: Mutex::new(Some(f)),
+            sender,
+        }
+    }
+}
+
+impl<T> ArcWake for Task<T> {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        arc_self.sender.send(arc_self.clone()).expect("failed to send task");
+    }
+}
+```
+
+ 这里的返回值我用了模板实现，不必太在意。主要看的是，Task 首先有一个 fut 成员，也即我们的 Future，因为是多线程，因此需要 Mutex 保护，Box 也变成了 BoxFuture，这个我们以后说，现在只需要知道这个字段是 Future 即可，它要等待调度的。另一个当然是 sender，因为当 我们的 fut 就绪的时候，需要 sender 把这个 Task 发到队列，可以看到，sender 实际上放着的是 Arc\<Task\<T\>\>，因为 Task 在队列中，可能被其它线程共享，当然本例中只有两个线程（IO 线程和主线程），但我们还是习惯加上了 Arc 容器。
+
+Task 的 new 方法接受一个 Future 和 sender，这当然是为了初始化。重点是 impl\<T\> ArcWake for Task\<T\> 。是的，这个 Task 就是上面提到的 waker 的实现，只要调用 waker 的 wake 方法，那么就会触发 wake_by_ref 的调用，在 wake_by_ref 里面，会看到， Task 的 sender 给队列发送了 Task。
+
+
+
+## 总结 Future 和 Task
+
+可见，Rust 的异步是这么实现的：
+
+0、主线程不停的在监听队列，取出等待调用的 Future，调用 Future 试图获得这个“函数”的返回值；
+
+1、但Future 实现了阻塞 IO 逻辑，当 IO 逻辑未完成时，若调用其 poll 方法，会返回 pending。主线程第一次调用发现是 Pending 返回，于是忽略继续处理下一个队列中的 Task；
+
+2、当 Future 的 IO 逻辑完成后，状态会被改成就绪，此时调用 waker 的 wake 方法触发后续操作；
+
+3、waker 其实就是 Task，Task 的 wake_by_ref 是被 waker 的 wake 方法触发的，其中会调用 sender 的 send 方法把 Task 放入队列；
+
+4、主线程不停的在监听队列，又遇到了刚才的 Task，于是又去 poll 了一下，发现此时可以返回 Ready 了，于是拿到了“函数”的返回值。
+
+画成图是这样：
+
+
+
+ 
