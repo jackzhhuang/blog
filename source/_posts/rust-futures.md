@@ -251,7 +251,7 @@ fn main() {
     println!("result = {}", result);
 ```
 
- 就一行 await 即可。当执行到 await 时，由于 SayHelloInPending 需要等待 IO 完成，此时主线程不会阻塞在 await 这个地方，此时相当于调用了 Future 的 poll 方法，主线程发现是Pending于是跑去执行别的 aysnc 函数（即下一个 Task 的 Future）去了，等到 await 返回才又继续往下执行println（即这个 Task wake 方法调用了 sender 把 Task 放入队列继续给调度器执行）。这段代码后面的奥妙，正式本节讲的内容。
+ 就一行 await 即可。当执行到 await 时，由于 SayHelloInPending 需要等待 IO 完成，此时主线程不会阻塞在 await 这个地方，此时相当于调用了 Future 的 poll 方法，主线程发现是Pending于是跑去执行别的 aysnc 函数（即下一个 Task 的 Future）去了，等到 await 返回才又继续往下执行println（即这个 Task wake 方法调用了 sender 把 Task 放入队列继续给调度器执行）。这段代码后面的奥妙，正是本节讲的内容。
 
 
 
