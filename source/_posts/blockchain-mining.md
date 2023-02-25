@@ -1,5 +1,5 @@
 ---
-title: 挖矿与脚本校验
+title: 区块链（四）：挖矿与脚本校验
 date: 2023-02-25 16:18:12
 tags:
 categories:
