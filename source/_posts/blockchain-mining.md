@@ -94,3 +94,21 @@ output script:
 
 
 
+## P2PKH (Pay to Public Key Hash)
+
+前面一种仅校验了出款方的私钥，实际上，除了校验这个以外，我们还可以校验出款方的地址：
+
+```rust
+input script:
+	PUSHDATA(Sig)
+	PUSHDATA(PubKey)
+output script:
+	DUP 
+	HASH160 
+	PUSHDATA(PubKeyHash) 
+	EQUALVERIFY 
+	CHECKSIG
+```
+
+上面的代码中，首先执行输入脚本的 PUSHDATA(Sig) 将出款方的私钥签名压入栈中，然后 PUSHDATA(PubKey) 压入出款方的公钥。接着执行输出脚本的 DUP，DUP函数会把栈顶数据复制一份，即此时，栈如下：
+
