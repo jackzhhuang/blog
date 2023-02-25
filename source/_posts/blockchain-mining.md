@@ -1,7 +1,6 @@
 ---
 title: 挖矿与脚本校验
 date: 2023-02-25 16:18:12
-published: false
 tags:
 categories:
 - Blockchain
@@ -112,15 +111,15 @@ output script:
 
 上面的代码中，首先执行输入脚本的 PUSHDATA(Sig) 将出款方的私钥签名压入栈中，然后 PUSHDATA(PubKey) 压入出款方的公钥。接着执行输出脚本的 DUP，DUP函数会把栈顶数据复制一份，即此时，栈如下：
 
-
+![](https://www.jackhuang.cc/svg/blockchain-key1.svg)
 
 接着执行 HASH160，即把顶端的公钥进行哈希，而后 PUSHDATA(PubKeyHash) 压入出款方的公钥哈希，这里特别提示，公钥哈希即出款方的地址：
 
-
+![](https://www.jackhuang.cc/svg/blockchain-key2.svg)
 
 EQUALVERIFY 指令则是将 栈顶的两个哈希值对比是否相等，即地址校验，成功后栈如下：
 
-
+![](https://www.jackhuang.cc/svg/blockchain-key3.svg)
 
 因此，CHECKSIG 即校验公私钥签名完成校验。
 
@@ -134,11 +133,11 @@ P2SH 是在 P2PKH 的基础上增加了 redeem 脚本，即赎回脚本，稍微
 
 ```rust
 redeemScript：
-	PUSHDATA(Sig)
-  PUSHDATA(Sig)
+	PUSHDATA(Sig_A)
+  PUSHDATA(Sig_B)
   2
-	PUSHDATA(PubKey)
-  PUSHDATA(PubKey)
+	PUSHDATA(PubKey_B)
+  PUSHDATA(PubKey_A)
   2
 	CHECKSIG
 input script:
@@ -151,6 +150,15 @@ output script:
 
 首先，从输入脚本开始，PUSHDATA(serialized redeemScript) 分别压入出款方的私钥签名和 redeem 脚本，然后 HASH160 将序列化后的 redeem 脚本做一次哈希，然后输出脚本的 PUSHDATA(redeemScriptHash) 指令也把自己的 redeem 脚本哈希压入栈：
 
+![](https://www.jackhuang.cc/svg/blockchain-key4.svg)
+
+此时执行 EQUAL 就可以对比两个 redeem 是否一致，保证本次交易 redeem 的代码时执行出款方的意愿。完成后，进入 redeemScript片段，片段中即将 A 和 B 的私钥及公钥压入栈中，然后进行验签，其原理大致同前不再赘述，通过后交易校验即通过。
 
 
-此时执行 EQUAL 就可以对比两个 redeem 是否一致，保证本次交易 redeem 的代码时执行出款方的意愿。完成后，进入 redeemScript片段，后面的
+
+### Proof of Burn
+
+有一种特殊的输出脚本，它不管怎么样都会执行 RETURN 语句，这个语句会返回错误，也就是说，如果进行交易校验，那么一定会失败，也即校验不通过。相当于上一个交易的输出金额将无法使用。那么这种脚本有什么用呢？因为 RETURN 语句一定返回失败，因此，RETURN 语句后面的内容无论如何都无法执行，因此可以写入任何东西，例如，某人预测足球比赛的结果，他会把足球比赛的结果取哈希后写入输出脚本中，这个交易就相当于一个用来记一个不可篡改的信息的交易。当然，这样做的话，会给 UTXO 系统造成负担，毕竟， UTXO 是全节点所有的输出记录集合，如果大量写入这种无法使用的输出记录，那么 UTXO 会变得难以维护。
+
+
+
