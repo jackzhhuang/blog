@@ -123,3 +123,35 @@ EQUALVERIFY 指令则是将 栈顶的两个哈希值对比是否相等，即地�
 
 
 因此，CHECKSIG 即校验公私钥签名完成校验。
+
+
+
+### P2SH (Pay to Script Hash) 和 P2PKH 结合
+
+P2SH 是在 P2PKH 的基础上增加了 redeem 脚本，即赎回脚本，稍微解释即：出款方在输出的时候会指定校验细节，这个细节写入redeem 脚本供下一次交易校验。简单来说，即想用使用出款方的钱，就必须满足上一次交易时出款方定下的规则，否则不予交易。例如这么一个场景，A 获得比特币时，在输出脚本的 redeem 脚本中指定要想使用 A 的余额，B 也要出钱，如此 redeem 脚本会校验 B 的私钥签名和地址。
+
+下面拿一个例子讲：
+
+```rust
+redeemScript：
+	PUSHDATA(PubKey)
+	CHECKSIG
+input script:
+	PUSHDATA(Sig)
+	PUSHDATA(serialized redeemScript)
+output script:
+	HASH160 
+	PUSHDATA(redeemScriptHash) 
+	EQUAL
+	PUSHDATA(Sig)
+	PUSHDATA(seriRS)
+	HASH160 
+	PUSHDATA(RSH) 
+	EQUAL
+```
+
+首先，从输入脚本开始，PUSHDATA(Sig) 和 PUSHDATA(serialized redeemScript) 分别压入出款方的私钥签名和 redeem 脚本，然后 HASH160 将序列化后的 redeem 脚本做一次哈希，然后输出脚本的 PUSHDATA(redeemScriptHash) 指令也把自己的 redeem 脚本哈希压入栈：
+
+
+
+此时，
