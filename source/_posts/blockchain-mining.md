@@ -134,11 +134,11 @@ P2SH 是在 P2PKH 的基础上增加了 redeem 脚本，即赎回脚本，稍微
 ```rust
 redeemScript：
 	PUSHDATA(Sig_A)
-  PUSHDATA(Sig_B)
-  2
+	PUSHDATA(Sig_B)
+	2
 	PUSHDATA(PubKey_B)
-  PUSHDATA(PubKey_A)
-  2
+	PUSHDATA(PubKey_A)
+	2
 	CHECKSIG
 input script:
 	PUSHDATA(serialized redeemScript)
