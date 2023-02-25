@@ -134,24 +134,23 @@ P2SH 是在 P2PKH 的基础上增加了 redeem 脚本，即赎回脚本，稍微
 
 ```rust
 redeemScript：
+	PUSHDATA(Sig)
+  PUSHDATA(Sig)
+  2
 	PUSHDATA(PubKey)
+  PUSHDATA(PubKey)
+  2
 	CHECKSIG
 input script:
-	PUSHDATA(Sig)
 	PUSHDATA(serialized redeemScript)
 output script:
 	HASH160 
 	PUSHDATA(redeemScriptHash) 
 	EQUAL
-	PUSHDATA(Sig)
-	PUSHDATA(seriRS)
-	HASH160 
-	PUSHDATA(RSH) 
-	EQUAL
 ```
 
-首先，从输入脚本开始，PUSHDATA(Sig) 和 PUSHDATA(serialized redeemScript) 分别压入出款方的私钥签名和 redeem 脚本，然后 HASH160 将序列化后的 redeem 脚本做一次哈希，然后输出脚本的 PUSHDATA(redeemScriptHash) 指令也把自己的 redeem 脚本哈希压入栈：
+首先，从输入脚本开始，PUSHDATA(serialized redeemScript) 分别压入出款方的私钥签名和 redeem 脚本，然后 HASH160 将序列化后的 redeem 脚本做一次哈希，然后输出脚本的 PUSHDATA(redeemScriptHash) 指令也把自己的 redeem 脚本哈希压入栈：
 
 
 
-此时，
+此时执行 EQUAL 就可以对比两个 redeem 是否一致，保证本次交易 redeem 的代码时执行出款方的意愿。完成后，进入 redeemScript片段，后面的
