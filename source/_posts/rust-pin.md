@@ -152,7 +152,7 @@ Pin 的出现，就是让这种误操作变成编译失败。
     let mut node1 = Pin::new(&mut n1);
 ```
 
-上面的代码 n1的生命周期覆盖了 node1 的生命周期，因为 node1 作为 Pin\<&Node\> 引用了 n1。
+上面的代码 n1的生命周期覆盖了 node1 的生命周期，因为 node1 作为 Pin&lt;&Node&gt; 引用了 n1。
 
 
 
@@ -276,7 +276,7 @@ help: consider mutably borrowing here
 49  |     std::mem::swap(node1.as_mut(), &mut node2.as_mut());
 ```
 
-如果我们按照提示的方法修改，也即我们取返回值的 &mut 引用，也即我们把 &mut Pin\<&T\> 给了 swap 函数，那么会发现内存并没有交换：
+如果我们按照提示的方法修改，也即我们取返回值的 &mut 引用，也即我们把 &mut Pin&lt;&T&gt; 给了 swap 函数，那么会发现内存并没有交换：
 
 ```rust
     std::mem::swap(&mut node1.as_mut(), &mut node2.as_mut());
@@ -303,13 +303,13 @@ node2.name = rose, node2.p_name = 0x7ffeefbff2f8, *node2.p_name = rose
 impl<'a, T: ?Sized> Pin<&'a mut T> 
 ```
 
-上面的这一行代码， ?Sized 表示 T 必须是一个在编译时期未知具体大小的类型，比如引用，但 Box 是一个编译时期已知大小的类型（它的成员是指针，固定大小），因此，Pin\<Box\<T\>\> 无法调用 get_mut。
+上面的这一行代码， ?Sized 表示 T 必须是一个在编译时期未知具体大小的类型，比如引用，但 Box 是一个编译时期已知大小的类型（它的成员是指针，固定大小），因此，Pin&lt;Box&lt;T&gt;&gt; 无法调用 get_mut。
 
 
 
 #### as_mut
 
-Pin\<Box\<T\>\> 中 Box\<T\> 实际就是一个栈上的数据（ T 在堆上），因此此时 as_mut 的情况和之前讨论在站上的数据保护一样，由于 as_mut 返回的是一个新的 Pin\<Box\<T\>\> 对象，因此，无法通过编译，即使通过引用符号转为 &mut T 类型，虽然可以通过编译并运行，但因为是新对象而不会造成原来的 T 对象有内存移动。这种情况完全和栈数据时的情况一样。
+Pin&lt;Box&lt;T&gt;&gt; 中 Box&lt;T&gt; 实际就是一个栈上的数据（ T 在堆上），因此此时 as_mut 的情况和之前讨论在站上的数据保护一样，由于 as_mut 返回的是一个新的 Pin&lt;Box&lt;T&gt;&gt; 对象，因此，无法通过编译，即使通过引用符号转为 &mut T 类型，虽然可以通过编译并运行，但因为是新对象而不会造成原来的 T 对象有内存移动。这种情况完全和栈数据时的情况一样。
 
 
 
@@ -348,7 +348,7 @@ node1.name = rose, node1.p_name = 0x7ffeefbff2f8, *node1.p_name = rose
 node2.name = jack, node2.p_name = 0x7ffeefbff318, *node2.p_name = jack
 ```
 
-这时因为 Pin\<T\> 被当作一个整体被 swap 了，也就是 swap 的是 Pin 对象而不是 T 对象， Pin 对象没有self-reference 问题，因此这么做结果是没问题的。
+这时因为 Pin&lt;T&gt; 被当作一个整体被 swap 了，也就是 swap 的是 Pin 对象而不是 T 对象， Pin 对象没有self-reference 问题，因此这么做结果是没问题的。
 
 
 
@@ -385,11 +385,11 @@ node1.name = rose, node1.p_name = 0x7ffeefbff2e8, *node1.p_name = rose
 node2.name = jack, node2.p_name = 0x7ffeefbff308, *node2.p_name = jack
 ```
 
-不管是 name 字段还是 p_name 字段，都交换了，之前提到的内存移动的坑没有了。这是因为 Pin\<T\> 中 T 没有 self-reference 问题，它被整体交换了，于是结果符合预期。
+不管是 name 字段还是 p_name 字段，都交换了，之前提到的内存移动的坑没有了。这是因为 Pin&lt;T&gt; 中 T 没有 self-reference 问题，它被整体交换了，于是结果符合预期。
 
 
 
-## 为什么 Future 要放在 Pin\<Box\<T\>\> 中
+## 为什么 Future 要放在 Pin&lt;Box&lt;T&gt;&gt; 中
 
 这是因为，Future 对象相当于是一个函数转过去的对象，如果我们在函数中定义了一个数组，然后调用一个 IO 阻塞函数，函数中引用这个数组并往里填数据，那么这之中将会触发一次 await，也即 Future 对象会在 IO 阻塞完成的时候重新 send 到队列中给 executor 执行，这就是一个内存移动过程：
 
@@ -408,11 +408,11 @@ async {
 
 ## 总结
 
-1、Pin\<T\> 通过 trait bound 检查（new 和 get_mut 方法）或者返回新的 Pin 对象（as_mut 方法）来防止内存移动的坑；对于 pinned struct 结构产生编译报错，防止我们直接对 T 进行内存移动操作。
+1、Pin&lt;T&gt; 通过 trait bound 检查（new 和 get_mut 方法）或者返回新的 Pin 对象（as_mut 方法）来防止内存移动的坑；对于 pinned struct 结构产生编译报错，防止我们直接对 T 进行内存移动操作。
 
-2、由于 Pin 的封装，我们把 Pin\<T\> 看成一个整体移动内存的话，则符合预期；
+2、由于 Pin 的封装，我们把 Pin&lt;T&gt; 看成一个整体移动内存的话，则符合预期；
 
-3、由于Pin 一方面阻止了 T 的内存移动bug，另一方面保证了 Pin\<T\> 可以符合预期的进行内存移动，因此，若出现 self-reference 的情况，我们应该用 Pin 封装一层，防止踩坑。
+3、由于Pin 一方面阻止了 T 的内存移动bug，另一方面保证了 Pin&lt;T&gt; 可以符合预期的进行内存移动，因此，若出现 self-reference 的情况，我们应该用 Pin 封装一层，防止踩坑。
 
 从上面的讨论可以看出， 尽管它的名字叫 Pin，Pin 并不是用来禁止内存移动的，而是保证内存移动能正常进行的类型。
 
