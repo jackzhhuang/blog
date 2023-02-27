@@ -127,4 +127,4 @@ jsonContent:
 deploy:
   type: git
   repo: git@github.com:jackzhhuang/jackzhhuang.github.io.git
-  branch: main
+  branch: master
