@@ -412,7 +412,7 @@ async {
 
 2、由于 Pin 的封装，我们把 Pin&lt;T&gt; 看成一个整体移动内存的话，则符合预期；
 
-3、由于Pin 一方面阻止了 T 的内存移动bug，另一方面保证了 Pin&lt;T&gt; 可以符合预期的进行内存移动，因此，若出现 self-reference 的情况，我们应该用 Pin 封装一层，防止踩坑。
+3、由于Pin 一方面阻止了 T 的内存移动bug，另一方面保证了 Pin&lt;T&gt; 可以符合预期的进行内存移动，因此，若出现 self-reference 的情况，我们应该用 Pin 封装一层，并且在 struct 中使用 PhantomPinned 字段协助 Pin 防止踩坑。
 
 从上面的讨论可以看出， 尽管它的名字叫 Pin，Pin 并不是用来禁止内存移动的，而是保证内存移动能正常进行的类型。
 
