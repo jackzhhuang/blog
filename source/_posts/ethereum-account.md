@@ -65,9 +65,11 @@ trie 结构有一个致命缺陷就是从根节点到信息节点中间浪费了
 
 ### 以太坊账户结构 MPT
 
-以太坊状态是存放在 patricia tree 中的，同时会建立一个 merkle patricia tree，简称 MPT，以防止信息被修改：
+以太坊状态是存放在 patricia tree 中的，同时会建立一个 merkle patricia tree，简称 MPT，以防止信息被修改，一个简易的 MPT 如下：
 
+![patricia tree](https://www.jackhuang.cc/svg/patricia-tree.svg)
 
+以太坊账户地址是用一个 160 位的数据保存的，也即其空间为  $2^{160}$ ，因此其账户分布是很稀疏的，查找效率非常高。
 
 
 
