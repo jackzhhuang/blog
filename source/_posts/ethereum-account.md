@@ -37,7 +37,9 @@ categories:
 
 以太坊由于有了状态的概念，不会再去维护 UTXO，因此交易的时候 A 的输出是 10 个以太币，A 余额扣减 10 个以太币，B 是可以重放这个请求的。为了防止 B 重放，以太坊交易的时候除了填写交易金额，还需要填写一个 nonce 字段，表示这是 A 的第几次交易。这个字段放在状态信息中维护，每次交易时 nonce 值加 1，下一次交易的时候会对比交易信息和账户信息的 nonce 值是否一致，因此，B 若重放 A 的请求，由于交易信息有 A 的私钥签名，无法串改 nonce，导致交易信息和状态信息不一致，交易无法校验通过，从而防止了 B 的恶意重放。
 
+注意：此 nonce 和挖矿的 nonce 无任何关系。
 
+![防止恶意节点重放](https://www.jackhuang.cc/svg/ethreplay-message.svg)
 
 
 
@@ -49,7 +51,15 @@ categories:
 
 例如，general，genesis，go，god和good这几个单词，其 trie 树看起来是这样：
 
+![trie树](https://www.jackhuang.cc/svg/trie.svg)
 
+上图中从 root 节点出发，按照单词的字母寻路，走到紫色节点既是单词的信息节点。
+
+
+
+#### patricia tree
+
+trie 结构有一个致命缺陷就是从根节点到信息节点中间浪费了很多无效节点，很占空间和遍历的时间，因此，patricia tree 则优化了这一点，把中间的白色节点折叠起来：
 
 
 
