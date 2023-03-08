@@ -61,6 +61,16 @@ categories:
 
 trie 结构有一个致命缺陷就是从根节点到信息节点中间浪费了很多无效节点，很占空间和遍历的时间，因此，patricia tree 则优化了这一点，把中间的白色节点折叠起来：
 
+![patricia tree](https://www.jackhuang.cc/svg/patricia-tree.svg)
+
+### 以太坊账户结构 MPT
+
+以太坊状态是存放在 patricia tree 中的，同时会建立一个 merkle patricia tree，简称 MPT，以防止信息被修改：
+
+
+
+
+
 
 
 
