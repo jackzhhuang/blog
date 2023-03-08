@@ -67,17 +67,23 @@ trie 结构有一个致命缺陷就是从根节点到信息节点中间浪费了
 
 以太坊状态是存放在 patricia tree 中的，同时会建立一个 merkle patricia tree，简称 MPT，以防止信息被修改，一个简易的 MPT 如下：
 
-![patricia tree](https://www.jackhuang.cc/svg/patricia-tree.svg)
+![merkle patricia tree](https://www.jackhuang.cc/svg/ethereum-account-tree.svg)
+
+上图节点的颜色和之前 patricia tree 的颜色是一致的，即 MPT 中有三种节点：
+
+1、白色的是 branch node，用于 0-f 分支；
+
+2、黄色的是 extension node，若后面有多个节点共享前缀，那么可以把这些节点折叠点起来变成extension node；
+
+3、紫色的是账户节点，保存账户信息。
 
 以太坊账户地址是用一个 160 位的数据保存的，也即其空间为  $2^{160}$ ，因此其账户分布是很稀疏的，查找效率非常高。
 
 
 
-
-
-
-
 ## 交易树
+
+
 
 
 
