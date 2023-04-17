@@ -54,3 +54,6 @@ deposit 是一个应用调用，账户创建时会有 balance\<Token\> 资源，
 
 
 
+# 为什么使用 SMT 访问 key - value 解构而不是直接从 RocksDB 依靠 key 读出 value？
+
+因为 SMT 是 sparce merkle tree，即稀疏默克尔树，有 verfication 的功能，轻节点可以依靠这个能力快速验证 key value 值是否存在于某个 block中，使用 SMT 既有默克尔树的特点（轻节点验证），又利用 RocksDB 实现 O(1) 查找（不考虑 key 碰撞的情况下）（轻节点查询）。
