@@ -101,7 +101,7 @@ async：即生成一个 future，如果函数被定义为 async 函数，则说�
 
 await：一个 future 对象的特殊调用，即尝试执行一个 future，若 future 因为被挂起，则等待唤醒，唤醒后，继续往下执行。重点理解这篇文章：https://tokio.rs/tokio/tutorial/async。简答的说，即：调用 await 会触发 future 类的 poll 调用，若 poll 函数返回 Ready 状态，那么 await 就返回，且带上 Ready 关联的返回值。若 poll 函数返回 Pending 状态，那么 await 继续挂起，即阻塞在 await 中，直到 有人调用 poll 中的 conntext waker 的 wake 函数，此时 poll 函数会重新被拉起，看 await 是否又可以继续执行：
 
-
+![](https://www.jackhuang.cc/svg/starcoin-service-poll.drawio.svg)
 
 了解了基本的 future await 概念后就可以去看 futures的 stream 了。
 
@@ -254,15 +254,27 @@ sink.await; // 异步调用 stream.await，每处理一个 item，就回调一�
 
 实现了一个异步任务框架，只需要实现 TaskState 和 Generate 这两个 trait 就可以异步执行并在错误的情况下可以重试。
 
-#### FutureTaskStream\<S\>
-
-即 stream 类，我们在里面封装了 TaskState，stream.await 调用的时候，就会在 poll_next 里面调用 TaskState 的 new_sub_task 并返回 future 对象，最终异步执行 TaskState 的 future。每次执行完，都会调用 TaskState 的 next 函数，next 函数会根据当前 TaskState 的执行状态生成新的 TaskState 供 stream 执行。
-
 #### trait TaskState
 
 即 FutureTaskStream\<S\> 里面的 S。封装 future，在 new_sub_task 中返回当前的 future，next 则负责返回下一个 future，在 stream 中依次执行。
 
-实际上，整个异步框架了解以上两个类就足够，以下两个主要用于辅助以上两个类运作。
+#### TaskResultCollector\<Item\>
+
+即 collector，在 FutureTaskSink\<Item, Output\> 中收集 future 返回的结果。主要有两个函数需要实现：
+
+```rust
+// 每获取一个结果就会调用一次，CollectorState 是 enough 则不再调用，是 need 继续处理下一个结果
+fn collect(&mut self, item: Item) -> Result<CollectorState>;
+
+// 结束的时候调用
+fn finish(self) -> Result<Self::Output>;
+```
+
+实际上，整个异步框架了解以上两个类就足够，以下几个主要用于辅助以上两个类运作。
+
+#### FutureTaskStream\<S\>
+
+即 stream 类，我们在里面封装了 TaskState，stream.await 调用的时候，就会在 poll_next 里面调用 TaskState 的 new_sub_task 并返回 future 对象，最终异步执行 TaskState 的 future。每次执行完，都会调用 TaskState 的 next 函数，next 函数会根据当前 TaskState 的执行状态生成新的 TaskState 供 stream 执行。
 
 #### trait Generator 和 struct TaskGenerator\<S, C\>
 
@@ -272,9 +284,62 @@ generate 函数主要拉起了整个异步流程，即初始化 TaskState，stre
 
 由 Generator 返回，对 future 进行了封装，可以获得 future 的 handle，与 TaskState 不同的是，TaskState 是用于批量执行子任务的，而 TaskFuture\<Output\>  更像是一个单独的 future 封装。
 
+#### FutureTaskSink\<Item, Output\>
+
+主要是用于收集 Output，Output 是一个 TaskResultCollector<Item, Output = Output> trait bound 的类（即代码中的 collector），用于存储 TaskState 的结果。其做法是在 FutureTaskSink\<Item, Output\>  创建的时候（new 方法），创建一个 channel，获得 sender 和 receiver，sink 每处理一个 future 的结果（item），就在 start_send 中 send 给 receiver，receiver 就会调用 collector 存储结果。（有一个细节，sink 创建 collect 线程的时候会 let receiver = receiver.fuse()，其目的是所有 stream 的 future 都返回结果的时候才开始处理结果）
+
+
+
 #### UML
 
 
+
+#### 从精简的伪代码理解
+
+ ```rust
+ // 任务，其中的 future 返回 item
+ impl TaskState for MyTaskState {
+   //  FutureTaskStream<S> 的 poll_next 中会调用，并拉起 future 异步流程， 调用 future 的poll
+   // 检查 future 的返回值，最后调用 next 生成新的 TaskState（当然也可能重试，边角逻辑不再赘述）
+   fn new_sub_task(&self) -> future { 
+      let fut = async {
+         do_something_in_async(); // 业务代码，返回 item
+     };
+     fut
+   }	
+   //  前一个结束，则后一个开始，返回新的 TaskState对象
+   fn next(self) -> Self	{
+      match self.result {
+        A_result => AnotherMyTaskStateA::new()
+        B_result => AnotherMyTaskStateB::new()
+     }
+   }						
+ }
+ 
+ // 任务结果，处理每个 future 的结果 item
+ impl TaskResultCollector<Item> for MyTaskStateOutputCollect {
+   // 每获取一个结果就会调用一次，CollectorState 是 enough 则不再调用，是 need 继续处理下一个结果
+   fn collect(&mut self, item: Item) -> Result<CollectorState> {
+     self.storage.save(item);  
+   }
+ 
+ 	// 结束的时候调用
+ 	fn finish(self) -> Result<Self::Output> {
+   	self.storage.flush();
+   }
+ }
+ 
+ // 以下是使用方法
+ let state = MyTaskState::new();
+ 
+ // 交给 TaskGenerator 跑异步流程
+ let generator = TaskGenerator<MyTaskState, MyTaskStateOutputCollect>::generate(state);
+ 
+ // 1、初始化 stream，buffered，放入 sink 中异步执行 stream 的 TaskState::new_sub_task 返回的 future
+ // 2、所有 future 结束后，调用 TaskResultCollector 的 collect 存储结果
+ // 以上两步都封装好在 TaskGenerator 中异步执行
+ generator.await; 
+ ```
 
 
 
