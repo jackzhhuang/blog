@@ -1,11 +1,9 @@
 ---
-title: 并发开发模型 —— 基本并发模型
+title: 并发开发模型（一） —— 基本并发模型
 date: 2023-04-16 18:46:39
-published: false
 tags:
 categories:
 - Concurrency
-
 ---
 
 ## 前置概念
@@ -55,7 +53,7 @@ start_thread(set_number);
 start_thread(check_number);
 ```
 
- 上述伪代码中，check_number 有可能优先执行，且因为 is_set 会被设置为 true，因此 CPU 会预判需要打印 number，因此，有可能会输出：
+ 上述伪代码中，check_number 有可能优先执行，且因为 is_set 和 number 没有必然的逻辑联系， CPU 可能会异步执行第 5 和第 6 行代码，即可能先执行 *is_set = true* ，因此 CPU 会先看到 is_set 是 true 了，然后打印 number 值，因此，有可能会输出：
 
 ```c++
 0
@@ -93,9 +91,9 @@ CPU，cache 和内存的并行：
 
 
 
-## 线程与锁
+## 锁与线程
 
-### 只有一把锁的情况
+### 简单锁
 
 我们最常见的就是使用一把锁来控制资源的访问，例如：
 
@@ -138,33 +136,128 @@ start_thread(check_large_number());
 
 那么，是不是使用不等号就没问题了呢？也未必。
 
-试想，如果我们每次增加 number，就调用某个外部函数，如果我们的期望是调用 100 次，多一次或者少一次都会造成致命错误，那么由于我们无法控制使用方有多少个线程在调用我们的 loop_incr_number，若使用方使用 3 个线程去调用 loop_incr_number，则由于线程 cache 的原因，可能会造成 do_something 被调用多于 100 次，如下代码所示：
-
 ```c++
-void loop_incr_number() {
-  while (get_number() < 100) {
-    incr_number();
-    do_something(); // 每次循环调用一次，一共调用 100 次
-  }
-}
-
-start_thread(loop_incr_number());
-start_thread(loop_incr_number());
-start_thread(loop_incr_number());
-```
-
-如何做到多个线程调用 loop_incr_number 且不会受到线程 cache 的影响呢？
-
-一个简单的方法就是给 incr_number 函数增加一个互斥锁，这样，即使外部线程再多，由于有互斥锁，这样即使有多个线程在调用 loop_incr_number 也不会出现因为线程 cache 的原因而多于 100 次的结果：
-
-```c++
-void syncronized loop_incr_number() {
-  while (get_number() < 100) {
-    incr_number();
-    do_something(); // 每次循环调用一次，一共调用 100 次
-  }
+void incr_number() {
+  ++number;
 }
 ```
 
-注意以上是伪代码，Java 中使用 sysncronized，C++ Windows 平台上则可以建立关键区从而做到函数级的互斥。这样，外部不管多少个线程调用 loop_incr_number 都会因为这个关键区同步运行。
+上面的代码中，number 可能因为线程 cache 的原因，导致若有两个线程都在跑 incr_number 函数的话，可能前一个函数的结果被后一个函数的结果覆盖的情况。细节是，每一个线程都有自己的 cache，若第一个线程 number 的 cache 是 10，第二个也是 10，第一个线程执行 ++，变为 11，第二个也因为是 10 执行 ++，结果也是 11，那么最后虽然两个线程执行了两次 ++，但结果却是 11。
 
+为了告诉线程， number 是有多线程访问的，不要使用 cache 优化，需要给 incr_number 函数加锁：
+
+```c++
+void synchronized incr_number() {
+  ++number;
+}
+```
+
+看上去对写操作进行加锁操作就可以了，但若读操作若不加锁，也是会被 cache 影响，所以，即使是读操作，也应该加上同步锁：
+
+```c++
+int synchronized get_number() {
+  return number;
+}
+```
+
+ 这时，loop_incr_number 和 check_large_number 应该都不会有问题了，但使用 synchronized 这样的基于代码的锁是非常有局限性的，因为它不能主动解锁，实际上最好使用 mutex 这样的：
+
+```c++
+void incr_number() {
+  mutex.lock();
+  ++number;
+}
+
+int get_number() {
+  mutex.lock();
+  return number;
+}
+```
+
+上面的 mutex 用 RAII 的管理锁方式去加锁，可以主动释放锁。使用 mutex 的好处是可以探测是否会被阻塞，从而减少了死锁的风险：
+
+```c++
+bool incr_number() {
+  Lock lock = mutex.trylock();
+  if (!lock) {
+    return false;
+  }
+  ++number;
+}
+
+int get_number() {
+  Lock lock = mutex.trylock();
+  if (!lock) {
+    return -1;
+  }
+  return number;
+}
+
+start_thread(incr_number);
+start_thread(get_number);
+```
+
+使用 trylock 可以给我们机会探测是否加锁成功。 相比最开始的 synchronize 就灵活很多。
+
+### 两个锁引起的死锁
+
+一般来说，一个资源就需要一把锁，若两个资源，那么就需要两把锁来控制对它们的访问：
+
+```c++
+bool is_set = false;
+int number = 10;
+
+void check() {
+  mutex_number.lock();
+  number++;
+  mutex_is_set.lock();
+  is_set = true;
+}
+
+void print() {
+  mutex_is_set.lock();
+  if (is_set) {
+    mutex_number.lock();
+    print(number)
+  }
+}
+start_thread(check);
+start_thread(print);
+```
+
+上面的伪代码中，严格遵循了一个资源一把锁的原则，这当然是好的，但 check 和 print 加锁顺序正好相法，若两个线程各跑一个函数，极有可能造成死锁：check 线程获得了 mutex_number 锁，等 mutex_is_set，而 print 线程获得了 mutex_is_set 锁，等 mutex_number 锁，两边互等。
+
+当然可以用 trylock 的方式避免，但这样相当于加大了失败的概率，有一定的损耗。
+
+### 好的并发编程建议
+
+以上算是简单的过了一遍使用简单锁和原始线程函数来解决问题的流程。可以看到，在实践编程中，若使用原始的锁和线程，往往会滋生很多潜在的危险：
+
+1、加锁没有考虑全面，造成出现由于 cache 优化的机制而有幻读的风险；
+
+2、使用 synchronize 这样的锁缺少灵活性；
+
+3、两个线程加锁顺序的不一致造成死锁。
+
+因此，一般情况下，尤其是应对复杂编程上下文环境时，不建议直接使用语言提供的原生 API 接口进行加锁和生成线程。应该使用有保障，封装优秀的并发编程库。
+
+此外，跑线程加锁这样的事情应该有章法可循。这里引入最经典最简单的模型：生产者和消费者模型。一方面标准化并发模型，另一方面杜绝了以上讨论到的坑点：
+
+```c++
+int number = 10;
+void check() {
+  producer.lock();
+  nunmber++;
+  producer.send(number);
+}
+
+void print() {
+  consumer.lock();
+  int number = consumer.receive();
+  print(number);
+}
+```
+
+可以看到，原来简单使用 mutex 来做同步控制，现在使用了生产者-消费者（producer- consumer）来同步，其和原来最本质区别是，number 这个对象不再是两个函数共享，而是彻底解藕。这种编程模型相比使用原生的锁和线程来控制，更易于理解，维护，当然也就容易避免了潜在的 cache 优化和死锁问题。
+
+当然，不管怎么样，异步编程都是有潜在的死锁问题的。生产者消费者模型并不是灵丹妙药，我们还是要注意逻辑上的死锁问题。
