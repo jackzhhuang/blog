@@ -4,6 +4,7 @@ date: 2023-02-26 16:07:13
 tags:
 categories:
 - Rust
+- Concurrency
 ---
 
 本节不讲异步编程。但 Pin 最先出现的地方就是在我们使用 Future 的时候，因此放入 异步编程里面讲了。

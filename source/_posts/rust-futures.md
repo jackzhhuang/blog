@@ -4,6 +4,7 @@ date: 2023-02-20 09:56:48
 tags:
 categories:
 - Rust
+- Concurrency
 ---
 
 上一节我们大概知道了一些异步编程概念，我们快速简单的复习一下：
